@@ -37,6 +37,5 @@ PYTHONPATH=src python -m pytest -q                 # test
 ## Documentazione
 
 - `docs/MANUALE_UTENTE.md` — manuale utente
-- `docs/ARCHITECTURE.md` — architettura, riferimenti scientifici, strategia di test
 - `docs/STATUS.md` — funzionalità incluse e non incluse
 - `CHANGELOG.md`
