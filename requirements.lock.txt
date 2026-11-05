@@ -1,0 +1,8 @@
+# Versioni verificate con la build Windows (Python 3.12 x64). La build usa questo file per essere riproducibile;
+# se un pacchetto non è più disponibile, ripiega su requirements.txt e lo segnala.
+PySide6==6.12.0
+Pillow==13.0.0
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+pytest==9.2.0
+pyinstaller==6.22.3

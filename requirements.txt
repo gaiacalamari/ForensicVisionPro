@@ -1,0 +1,10 @@
+# Runtime
+PySide6>=6.6
+Pillow>=10.3
+numpy>=1.26
+opencv-python-headless>=4.9
+# Sviluppo e build
+pytest>=8
+pyinstaller>=6.6
+# La build usa requirements.lock.txt (versioni verificate) e ripiega su questo file.
+# Strumenti esterni: scaricati e verificati automaticamente da tools/fetch_tools.py (bin/tools.json).
