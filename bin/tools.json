@@ -1,0 +1,43 @@
+{
+  "_info": "Strumenti esterni scaricati in questa cartella da tools/fetch_tools.py. Per aggiungerne uno, copiare un blocco e adattarlo. Campi: platform (win32, linux, darwin o any), urls (provati in ordine), sha256 fisso oppure sha256_url, extract (file nell'archivio -> nome in bin), dirs (cartelle nell'archivio -> nome in bin), check (argomenti per verificare l'esecuzione).",
+  "tools": [
+    {
+      "name": "exiftool",
+      "version": "13.59",
+      "platform": "win32",
+      "urls": [
+        "https://downloads.sourceforge.net/project/exiftool/exiftool-13.59_64.zip",
+        "https://exiftool.org/exiftool-13.59_64.zip"
+      ],
+      "sha256": "44b512b25af500724ba579d0a53c8fc5851628b692dd5e5d94ae4a15c2cba9ec",
+      "extract": {
+        "*/exiftool(-k).exe": "exiftool.exe",
+        "*/exiftool.exe": "exiftool.exe"
+      },
+      "dirs": {
+        "*/exiftool_files": "exiftool_files"
+      },
+      "check": [
+        "exiftool.exe",
+        "-ver"
+      ]
+    },
+    {
+      "name": "ffmpeg",
+      "version": "release-essentials (gyan.dev)",
+      "platform": "win32",
+      "urls": [
+        "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+      ],
+      "sha256_url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256",
+      "extract": {
+        "*/bin/ffmpeg.exe": "ffmpeg.exe",
+        "*/bin/ffprobe.exe": "ffprobe.exe"
+      },
+      "check": [
+        "ffprobe.exe",
+        "-version"
+      ]
+    }
+  ]
+}
