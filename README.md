@@ -1,4 +1,4 @@
-# Forensic Vision Pro 1.1
+# Forensic Vision Pro 
 
 Suite desktop per l'analisi forense di immagini (e, in parte, video e audio): acquisizione con hash verificati e catena di custodia, struttura dei file, metadati, analisi temporale, storia di compressione JPEG, copy-move, filtro mediano, PRNU, steganalisi e StegoIntelligence, confronto tra immagini, Hex Viewer e report.
 
