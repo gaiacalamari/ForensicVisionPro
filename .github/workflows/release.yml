@@ -1,29 +1,82 @@
 name: Release Windows
+
+# Si avvia in due modi:
+#  - pubblicando un tag (git push origin v1.2.0);
+#  - dal browser: scheda Actions > Release Windows > Run workflow, indicando la versione (il tag viene creato qui).
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Versione da pubblicare (es. v1.2.0)"
+        required: true
+
 permissions:
-  contents: write
-  id-token: write
+  contents: write        # creare la release e caricare i file
+  id-token: write        # attestazione di provenienza
   attestations: write
+
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"       # le versioni in requirements.lock.txt sono verificate su 3.12
+
+      - name: Controllo versione
+        shell: pwsh
+        run: |
+          $v = $env:TAG.TrimStart('v')
+          $code = (Select-String -Path src\fvp\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          $ps = (Select-String -Path packaging\build_windows.ps1 -Pattern '^\$Version = "(.+)"').Matches[0].Groups[1].Value
+          $iss = (Select-String -Path packaging\installer.iss -Pattern 'AppVersion "(.+)"').Matches[0].Groups[1].Value
+          Write-Host "Tag $env:TAG | __init__ $code | build_windows.ps1 $ps | installer.iss $iss"
+          if ($code -ne $v -or $ps -ne $v -or $iss -ne $v) {
+            Write-Error "Il tag non corrisponde alla versione scritta nei file: aggiornare i numeri di versione."
+            exit 1
+          }
+
+      - name: Build (stessa procedura di build_windows.bat)
         shell: pwsh
         run: .\packaging\build_windows.ps1
+
+      - name: Controllo dei file prodotti
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist\installer\*.exe)) { Write-Error "Installer non creato (Inno Setup): vedi il passo Build"; exit 1 }
+          if (-not (Test-Path dist\*.zip)) { Write-Error "Versione portable non creata"; exit 1 }
+          Get-Content dist\SHA256SUMS.txt
+
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             dist/installer/*.exe
             dist/*.zip
-      - name: Release
+
+      - name: Pubblica la release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME `
+          gh release create $env:TAG `
             (Get-Item dist\installer\*.exe) (Get-Item dist\*.zip) dist\SHA256SUMS.txt `
-            --title "Forensic Vision Pro $($env:GITHUB_REF_NAME.TrimStart('v'))" --generate-notes
+            --target $env:GITHUB_SHA `
+            --title "Forensic Vision Pro $($env:TAG.TrimStart('v'))" `
+            --notes "Compilato da GitHub Actions dal commit $env:GITHUB_SHA. Verificare il download con SHA256SUMS.txt." `
+            --generate-notes
+
+      - name: Conserva i registri di build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            build/build.log
+            build/selfcheck-*.json
+          if-no-files-found: ignore
