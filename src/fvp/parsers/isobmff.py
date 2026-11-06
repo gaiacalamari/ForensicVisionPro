@@ -130,7 +130,8 @@ def _leaf(ctx: _Ctx, typ: str, start: int, end: int, node: Node, path: str) -> N
             ctx.udta.append({"atom": path, "offset": node.offset, "text": printable[:200]})
 
 
-def parse(path: str | Path) -> ParseResult:
+def parse(path: str | Path, still_image: bool = False) -> ParseResult:
+    """still_image=True per HEIF/AVIF: niente controlli su 'moov'/'mdat', che valgono solo per i filmati."""
     p = Path(path)
     size = p.stat().st_size
     root = Node("file", 0, size)
@@ -143,7 +144,7 @@ def parse(path: str | Path) -> ParseResult:
                                         f"Limite di sicurezza raggiunto: {e}.", "Parsing ISO BMFF", MODULE))
     top = [c.name for c in root.children]
     fnd = ctx.findings
-    if "moov" not in top and not any(n.startswith("moof") for n in top):
+    if not still_image and "moov" not in top and not any(n.startswith("moof") for n in top):
         fnd.append(Finding(Category.FILE_STRUCTURE, Level.EVIDENCE, "Atom 'moov' assente",
                            "Senza 'moov' il file non è riproducibile: tipico di registrazioni interrotte o file "
                            "troncati.", "Parsing ISO BMFF", MODULE, confidence="alta", significant=True))
@@ -160,7 +161,7 @@ def parse(path: str | Path) -> ParseResult:
                            f"Atom presenti: {', '.join(unknown_top)}.", "Parsing ISO BMFF", MODULE,
                            limitations="Alcuni produttori usano atom proprietari: confrontare con file di "
                                        "riferimento dello stesso modello."))
-    if "moov" in top and "mdat" in top:
+    if not still_image and "moov" in top and "mdat" in top:
         order = "moov prima di mdat (faststart / remux)" if top.index("moov") < top.index("mdat") else \
             "mdat prima di moov (tipico di registrazione diretta)"
         fnd.append(Finding(Category.VIDEO_INTEGRITY, Level.INFO, "Ordine moov/mdat", order + ".",

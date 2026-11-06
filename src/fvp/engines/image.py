@@ -129,6 +129,15 @@ def thumbnail_check(path: str | Path, exiftool_path: str = "") -> Finding | None
     meth = "Confronto miniatura EXIF / immagine principale"
     try:
         th = Image.open(io.BytesIO(data)).convert("L")
+    except Exception as e:  # noqa: BLE001
+        return Finding(Category.IMAGE_MANIPULATION, Level.UNDETERMINED, "Miniatura non decodificabile", str(e),
+                       meth, MODULE)
+    return compare_thumbnail(th, path, meth)
+
+
+def compare_thumbnail(th: Image.Image, path: str | Path, meth: str) -> Finding:
+    """Confronto tra una miniatura già decodificata (scala di grigi) e l'immagine principale."""
+    try:
         main = ImageOps.exif_transpose(_load_rgb(path)).convert("L")
         main_raw = _load_rgb(path).convert("L")
     except Exception as e:  # noqa: BLE001

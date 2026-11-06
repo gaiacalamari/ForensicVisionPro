@@ -18,7 +18,10 @@ datas += collect_data_files("cv2", includes=["data/*.xml"])
 datas += [(str(root / "docs"), "docs")]
 
 a = Analysis([str(root / "src" / "fvp" / "__main__.py")], pathex=[str(root / "src")], datas=datas,
-             hiddenimports=["PIL.ImageCms", "PIL.JpegImagePlugin", "fvp.core.selfcheck"],
+             hiddenimports=["PIL.ImageCms", "PIL.JpegImagePlugin", "fvp.core.selfcheck",
+                            # HEIC: modulo nativo di primo livello; le DLL (pillow_heif.libs) sono risolte
+                            # dall'analisi delle dipendenze. Il self-check sull'eseguibile finito lo verifica.
+                            "pillow_heif", "pillow_heif.as_plugin", "_pillow_heif"],
              excludes=["tkinter", "matplotlib", "pytest", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
                        "PySide6.Qt3DCore", "PySide6.QtQuick", "PySide6.QtQml", "PySide6.QtPdf", "PySide6.QtMultimedia",
                        "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtBluetooth", "PySide6.QtPositioning"],

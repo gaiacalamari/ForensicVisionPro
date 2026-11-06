@@ -7,7 +7,10 @@
 | Flusso di lavoro | Caso obbligatorio, caricamento di immagini singole, multiple o cartelle, trascinamento, profili di analisi |
 | Interfaccia | Tema chiaro predefinito e tema scuro, 16 pagine, operazioni in background con avanzamento e annullamento |
 | Preservazione delle evidenze | Copia verificata in sola lettura, hash pre/post analisi, audit log a catena di hash, catena di custodia |
-| Struttura dei file | JPEG, PNG, ISO BMFF (MP4/MOV/HEIF), firme incorporate, dati accodati |
+| Struttura dei file | JPEG, PNG, ISO BMFF (MP4/MOV), HEIF/HEIC (item, iloc, griglia di tile, miniature, immagini ausiliarie, byte non referenziati), firme incorporate, dati accodati |
+| HEIC/HEIF | Decodifica con pillow-heif (libheif): tutte le analisi dei pixel, miniatura HEIF confrontata con l'immagine, anteprime e report |
+| Dispositivo | Convenzioni di nome dei file (iPhone, Samsung, Pixel, Android, WhatsApp/Telegram/Signal), ora nel nome, coerenza Model/HostComputer/LensModel, versione di iOS rispetto a modello e date, risoluzione rispetto al modello, dimensioni EXIF/raster, MakerNotes, struttura HEIF tipica dell'iPhone. Profili in `engines/device_db.py`, estendibili con `device_profiles.json` |
+| Confronto tra reperti | Abbinamento Live Photo (foto + MOV), più versioni dello stesso scatto, numerazione IMG_xxxx rispetto alle date sullo stesso modello |
 | Metadati e tempi | ExifTool con classificazione di attendibilità, timeline, coerenza EXIF/XMP/GPS/contenitore/filesystem |
 | Manipolazione | ELA singola e multi-qualità, JPEG ghost, doppia quantizzazione, griglia 8x8, residuo di rumore, filtro mediano, copy-move, miniatura EXIF |
 | Contenuti nascosti | Estrazione LSB (testo in qualunque punto, lunghezze 2/4/8 byte, Base64, file, OpenStego, audio WAV), testo nei metadati e nei byte del file, spazi non standard dei BMP, segni quasi invisibili, RS e chi-quadro sui pixel, chi-quadro DCT per i JPEG |

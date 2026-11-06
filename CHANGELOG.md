@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 (in sviluppo)
+
+- HEIC/HEIF: decodifica con pillow-heif; i file iPhone passano per tutte le analisi dei pixel (prima erano esclusi).
+- Nuovo parser HEIF: item, iloc, iref, proprietà, griglia di tile, miniature, Exif/XMP, immagini ausiliarie
+  (gain map HDR, matte del Ritratto), extent oltre la fine del file, byte non referenziati in mdat.
+- Corretto: i file HEIC ricevevano sempre "Atom 'moov' assente" come evidenza certa (controllo valido solo per i video).
+- Nuovo modulo "device": coerenza del file con il dispositivo dichiarato (nome, ora nel nome, campi del modello,
+  versione di iOS, data di uscita, risoluzione, dimensioni EXIF, MakerNotes, struttura HEIF).
+- Self-check: decodifica HEIC reale; la build si ferma se il decoder manca.
+- Modulo "device" esteso ai video iPhone (chiavi QuickTime com.apple.quicktime.*): modello, iOS, date, risoluzione.
+- Nuovo modulo "case_context": abbinamento Live Photo (ContentIdentifier) con verifica di numero, modello e orario;
+  più versioni dello stesso scatto; numerazione IMG_xxxx coerente con l'ordine delle date (con rollover 9999→0001
+  e riconoscimento dei cambi di fuso). Cache per SHA-256 nel caso.
+- Carica e analizza: acquisisce tutto il lotto prima di analizzarlo, così il confronto tra reperti non dipende
+  dall'ordine dei file.
+- Aggiunto .gitignore.
+
 ## 1.1.0
 
 **Report HTML 1.1**

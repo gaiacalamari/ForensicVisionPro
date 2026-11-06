@@ -107,6 +107,26 @@ def _writable(name: str, path: Path) -> Check:
         return Check(name, CRITICAL, False, f"{path}: non scrivibile ({e})")
 
 
+def _heif(tmp: Path) -> Check:
+    """Decodifica reale di un HEIC generato al momento (verifica libheif + libde265 inclusi nella build)."""
+    try:
+        import pillow_heif
+        from PIL import Image
+
+        from ..engines import heif_support
+        if not heif_support.ensure_registered():
+            return Check("Decoder HEIF/HEIC (pillow-heif)", CRITICAL, False, "registrazione non riuscita")
+        f = tmp / "selfcheck.heic"
+        Image.new("RGB", (64, 48), (200, 30, 30)).save(f, quality=90)
+        with Image.open(f) as im:
+            im.load()
+            ok = im.size == (64, 48) and im.getpixel((10, 10))[0] > 150
+        return Check("Decoder HEIF/HEIC (pillow-heif)", CRITICAL, ok, "decodifica verificata" if ok else
+                     "decodifica errata", f"{pillow_heif.__version__} / libheif {pillow_heif.libheif_version()}")
+    except Exception as e:  # noqa: BLE001
+        return Check("Decoder HEIF/HEIC (pillow-heif)", CRITICAL, False, f"{type(e).__name__}: {e}")
+
+
 def run(settings: Settings | None = None) -> list[Check]:
     settings = settings or Settings.load()
     checks = [_pkg("Qt (PySide6)", "PySide6"), _pkg("Pillow", "PIL"), _pkg("NumPy", "numpy"),
@@ -125,7 +145,7 @@ def run(settings: Settings | None = None) -> list[Check]:
     except Exception as e:  # noqa: BLE001
         checks.append(Check("Rilevatore volti (Haar)", OPTIONAL, False, str(e)))
     with tempfile.TemporaryDirectory() as td:
-        checks += [_exiftool(settings, Path(td)), _ffprobe(settings, Path(td))]
+        checks += [_exiftool(settings, Path(td)), _ffprobe(settings, Path(td)), _heif(Path(td))]
     checks.append(_ffmpeg(settings))
     checks += _bundle_integrity()
     checks += [_writable("Cartella dei casi", settings.cases_path), _writable("Archivio impronte PRNU", settings.prnu_path)]

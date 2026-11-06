@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from typing import Callable
 
-from . import bmp, isobmff, jpeg, png
+from . import bmp, heif, isobmff, jpeg, png
 from .base import ParseResult
 
 PARSERS: dict[str, Callable[[str], ParseResult]] = {
     "jpeg": jpeg.parse, "png": png.parse, "bmp": bmp.parse,
-    "mp4": isobmff.parse, "mov": isobmff.parse, "3gp": isobmff.parse, "heif": isobmff.parse, "avif": isobmff.parse,
+    "mp4": isobmff.parse, "mov": isobmff.parse, "3gp": isobmff.parse, "heif": heif.parse, "avif": heif.parse,
 }
 
 

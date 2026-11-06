@@ -19,6 +19,12 @@ In **Carica e analizza**:
 
 Al termine, il reperto da esaminare si sceglie dal menu "Reperto" in alto.
 
+### File HEIC e coerenza con il dispositivo
+
+I file HEIC/HEIF degli iPhone sono analizzati come gli altri formati di immagine (decodifica con libheif). Il modulo **Coerenza con il dispositivo** confronta nome del file, ora nel nome, versione di iOS, data di uscita del modello e risoluzione con quanto dichiarato in Make/Model; i profili dei modelli sono in `engines/device_db.py` e si possono correggere o ampliare con `device_profiles.json` nella cartella dati. I profili inclusi vanno validati con file campione del laboratorio.
+
+Il modulo **Confronto con gli altri reperti** abbina foto e filmato delle Live Photo, segnala più versioni dello stesso scatto e verifica che la numerazione IMG_xxxx segua l'ordine delle date di scatto sullo stesso modello. Per questo conviene caricare insieme tutti i file dello stesso dispositivo: il programma li acquisisce tutti prima di analizzarli. Se si aggiungono reperti in un secondo momento, rianalizzare i precedenti con il solo modulo di confronto.
+
 ## Leggere i risultati
 
 La pagina **Riepilogo** è il punto di partenza. In alto c'è la sintesi del caso in parole semplici. Sotto ci sono il racconto del file selezionato (menu "File" in alto) e l'elenco di **ciò che merita attenzione**:

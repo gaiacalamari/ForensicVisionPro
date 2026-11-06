@@ -14,6 +14,8 @@ from ..widgets.common import Page, fill_table, make_table
 
 MODS = [("signature", "Formato reale del file"), ("structure", "Struttura interna del file"),
         ("metadata", "Metadati (fotocamera, software, GPS)"), ("timestamps", "Coerenza di date e orari"),
+        ("device", "Coerenza con il dispositivo (nome file, risoluzione, iOS)"),
+        ("case_context", "Confronto con gli altri reperti (Live Photo, numerazione IMG)"),
         ("image", "Mappe di base: ELA, rumore, miniatura"),
         ("jpeg_advanced", "Storia della compressione JPEG"),
         ("median", "Ritocchi locali (filtro mediano)"), ("copymove", "Regioni copiate (copy-move)"),
@@ -24,7 +26,7 @@ MODS = [("signature", "Formato reale del file"), ("structure", "Struttura intern
         ("video", "Video e audio (FFprobe)"), ("carving_scan", "File incorporati nel file")]
 PRESETS = {
     "Completa (consigliata)": [k for k, _ in MODS],
-    "Rapida: struttura, metadati, date, ELA": ["signature", "structure", "metadata", "timestamps", "image",
+    "Rapida: struttura, metadati, date, ELA": ["signature", "structure", "metadata", "timestamps", "device", "image",
                                                "carving_scan"],
     "Contenuti nascosti": ["signature", "structure", "metadata", "stego", "stegointel", "hidden_text", "carving_scan"],
     "Personalizzata": None,
@@ -155,7 +157,7 @@ class LoadPage(Page):
 
     def _add_files(self) -> None:
         fs, _ = QFileDialog.getOpenFileNames(self, "Immagini da acquisire", "",
-                                             "Immagini (*.jpg *.jpeg *.png *.tif *.tiff *.bmp *.gif *.webp *.heic *.heif);;"
+                                             "Immagini (*.jpg *.jpeg *.png *.tif *.tiff *.bmp *.gif *.webp *.heic *.heif *.hif *.avif);;"
                                              "Tutti i file (*)")
         if fs:
             self._add_paths([Path(f) for f in fs])
@@ -206,23 +208,34 @@ class LoadPage(Page):
         settings = self.state.settings
 
         def job(progress, cancel):
-            last = None
+            # Prima si acquisiscono tutti i file, poi si analizzano: così il confronto tra reperti
+            # (Live Photo, numerazione IMG) vede l'intero lotto qualunque sia l'ordine dei file.
+            last, acquired, n = None, [], len(items)
             for i, q in enumerate(items):
-                base, span = i / len(items), 1 / len(items)
                 f = Path(q["path"])
-                tag = f"{i + 1}/{len(items)} {f.name}"
+                tag = f"{i + 1}/{n} {f.name}"
                 try:
                     ex = case.acquire(f, op, f"{lbl} · {f.name}" if lbl else f.name, cancel=cancel,
-                                      progress=lambda p, m: progress(base + span * 0.3 * p, f"{tag}: {m}"))
+                                      progress=lambda p, m: progress(0.3 * (i + p) / n, f"{tag}: {m}"))
                     q["status"] = f"acquisito come {ex.id}"
+                    acquired.append((q, ex))
+                except Cancelled:
+                    q["status"] = "annullato"
+                    raise
+                except Exception as e:  # noqa: BLE001 - un file problematico non interrompe il lotto
+                    q["status"] = f"errore: {e}"
+            for i, (q, ex) in enumerate(acquired):
+                base, span = 0.3 + 0.7 * i / max(len(acquired), 1), 0.7 / max(len(acquired), 1)
+                tag = f"{i + 1}/{len(acquired)} {Path(q['path']).name}"
+                try:
                     analyze_exhibit(case, ex.id, op, settings, mods,
-                                    lambda p, m: progress(base + span * (0.3 + 0.7 * p), f"{tag}: {m}"), cancel)
+                                    lambda p, m: progress(base + span * p, f"{tag}: {m}"), cancel)
                     q["status"] = f"analizzato · {ex.id}"
                     last = ex.id
                 except Cancelled:
                     q["status"] = "annullato"
                     raise
-                except Exception as e:  # noqa: BLE001 - un file problematico non interrompe il lotto
+                except Exception as e:  # noqa: BLE001
                     q["status"] = f"errore: {e}"
             return last
 

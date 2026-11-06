@@ -29,7 +29,8 @@ CATEGORY_HELP = {
     Category.AUDIO_INTEGRITY: "Coerenza delle tracce audio.",
     Category.FILE_STRUCTURE: "Correttezza interna del file: parti mancanti, dati aggiunti, formato reale.",
     Category.STEGANOGRAPHY: "Messaggi, file o testo nascosti dentro l'immagine o nei suoi dati.",
-    Category.SENSOR: "Confronto con l'impronta del sensore di fotocamere note (PRNU).",
+    Category.SENSOR: "Coerenza con il dispositivo dichiarato (modello, risoluzione, versione di sistema) e "
+                     "confronto con l'impronta del sensore di fotocamere note (PRNU).",
 }
 LEVEL_PLAIN = {
     Level.EVIDENCE: "Fatto accertato", Level.ANOMALY: "Anomalia", Level.SUSPICIOUS: "Da verificare",

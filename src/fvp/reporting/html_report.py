@@ -19,6 +19,9 @@ from PIL import Image
 from ..cases.store import Case
 from ..core import explain
 from ..core.findings import Category, Finding, Level, Status
+from ..engines import heif_support
+
+heif_support.ensure_registered()      # anteprime HEIC nel report
 
 STATUS_CLASS = {Status.GREEN: "ok", Status.YELLOW: "warn", Status.RED: "alert", Status.GREY: "na"}
 LEVEL_CLASS = {Level.EVIDENCE: "alert", Level.ANOMALY: "alert", Level.SUSPICIOUS: "warn", Level.PROBABILISTIC: "stat",

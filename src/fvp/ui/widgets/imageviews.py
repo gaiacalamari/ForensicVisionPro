@@ -7,6 +7,21 @@ from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
 
 
 
+def _pillow_qimage(path: str) -> QImage:
+    try:
+        from PIL import Image, ImageOps
+
+        from ...engines import heif_support
+        heif_support.ensure_registered()
+        with Image.open(path) as im:
+            im.load()
+            rgba = ImageOps.exif_transpose(im).convert("RGBA")
+        data = rgba.tobytes("raw", "RGBA")
+        return QImage(data, rgba.width, rgba.height, rgba.width * 4, QImage.Format.Format_RGBA8888).copy()
+    except Exception:  # noqa: BLE001 - un'anteprima non decodificabile non blocca l'interfaccia
+        return QImage()
+
+
 class ImageView(QGraphicsView):
     def __init__(self, group: "SyncGroup"):
         super().__init__()
@@ -26,6 +41,8 @@ class ImageView(QGraphicsView):
     def set_image(self, path: str | None) -> None:
         if path:
             img = QImage(path)
+            if img.isNull():
+                img = _pillow_qimage(path)      # HEIC/HEIF e altri formati che Qt non legge
             self.item.setPixmap(QPixmap.fromImage(img) if not img.isNull() else QPixmap())
         else:
             self.item.setPixmap(QPixmap())

@@ -12,8 +12,8 @@ from pathlib import Path
 
 from .. import __version__
 from ..cases.store import Case
-from ..engines import (compare, hashing, hidden_text, image, image_extra, jpeg_forensics, metadata, prnu, signature, stego,
-                       stegointel, timestamps, video)
+from ..engines import (case_context, compare, device, hashing, heif_support, hidden_text, image, image_extra, jpeg_forensics, metadata,
+                       prnu, signature, stego, stegointel, timestamps, video)
 from ..parsers.registry import parser_for
 from .audit import utc_now
 from .config import Settings
@@ -21,10 +21,10 @@ from .findings import Category, Finding, Level
 from .tasks import Cancelled, CancelToken, ProgressFn, noop_progress
 from .tools import get_tool
 
-IMAGE_FORMATS = {"jpeg", "png", "gif", "tiff", "bmp", "webp"}
+IMAGE_FORMATS = {"jpeg", "png", "gif", "tiff", "bmp", "webp", "heif", "avif"}
 VIDEO_FORMATS = {"mp4", "mov", "3gp", "avi", "mkv", "webm", "mpeg_ps", "mpeg_ts", "m2ts"}
 AUDIO_FORMATS = {"wav", "mp3", "flac", "ogg", "aac"}
-ALL_MODULES = ["integrity", "signature", "structure", "metadata", "timestamps", "image", "jpeg_advanced", "median",
+ALL_MODULES = ["integrity", "signature", "structure", "metadata", "timestamps", "device", "case_context", "image", "jpeg_advanced", "median",
                "copymove", "stego", "stegointel", "hidden_text", "quality", "prnu", "video", "carving_scan"]
 ARTIFACT_LABELS = {
     "ela": "Error Level Analysis (q90)", "ela_multi": "ELA multi-qualità (composita)", "ghost": "JPEG ghost",
@@ -90,7 +90,7 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         sig = {"format": None}
     fmt = sig.get("format")
 
-    png_text, png_time, container_times = None, None, None
+    png_text, png_time, container_times, heif_struct = None, None, None, None
     qtable, jpeg_q = None, None
     if "structure" in modules and parser_for(fmt):
         try:
@@ -101,6 +101,7 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
             png_text = pr.extra.get("text")
             png_time = pr.extra.get("tIME")
             container_times = pr.extra.get("times")
+            heif_struct = pr.extra.get("heif")
             if pr.extra.get("qtables", {}).get("0"):
                 qtable = pr.extra["qtables"]["0"]["values"]
                 jpeg_q = pr.extra["qtables"]["0"]["ijg_quality"]
@@ -140,6 +141,41 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         except Exception as e:  # noqa: BLE001
             findings.append(_fail("timestamps", Category.TEMPORAL, e))
 
+    if "device" in modules:
+        try:
+            step(0.45, "Coerenza con il dispositivo dichiarato")
+            raster = None
+            if fmt in IMAGE_FORMATS:
+                try:
+                    from PIL import Image as _Image
+                    with _Image.open(wp) as _im:          # legge solo l'intestazione
+                        raster = _im.size
+                except Exception:  # noqa: BLE001 - il raster non decodificabile è segnalato più avanti
+                    raster = None
+            dres, dfs = device.analyze(meta, ex.original_name, ex.source_path or "", raster, fmt, heif_struct)
+            results["device"] = dres
+            findings += dfs
+            if any(x.category == Category.SENSOR for x in dfs):
+                executed.add(Category.SENSOR)
+            results["executed"].append("device")
+        except Cancelled:
+            raise
+        except Exception as e:  # noqa: BLE001
+            findings.append(_fail("device", Category.SENSOR, e))
+
+    if "case_context" in modules and len(case.exhibits()) > 1:
+        try:
+            step(0.47, "Confronto con gli altri reperti del caso")
+            recs = case_context.collect(case, settings.exiftool_path, settings.tool_timeout_s)
+            cres, cfs = case_context.analyze(ex_id, recs)
+            results["case_context"] = cres
+            findings += cfs
+            results["executed"].append("case_context")
+        except Cancelled:
+            raise
+        except Exception as e:  # noqa: BLE001
+            findings.append(_fail("case_context", Category.METADATA, e))
+
     art = case.artifacts_dir(ex_id)
     if fmt in IMAGE_FORMATS:
         try:
@@ -160,11 +196,14 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         fmt_pixels = False
     if "image" in modules and fmt_pixels:
         executed.add(Category.IMAGE_MANIPULATION)
-        for name, fn in (("image_info", lambda: image.image_info(wp)),):
+        for name, fn in (("image_info", lambda: image.image_info(wp)),
+                         ("heif_decoder", lambda: heif_support.details(wp) if fmt == "heif" else None)):
             try:
-                results[name] = fn()
+                val = fn()
+                if val is not None:
+                    results[name] = val
             except Exception as e:  # noqa: BLE001
-                findings.append(_fail("image_info", Category.IMAGE_MANIPULATION, e))
+                findings.append(_fail(name, Category.IMAGE_MANIPULATION, e))
         try:
             step(0.55, "Error Level Analysis")
             _, fe = image.ela(wp, 90, art / "ela_q90.png")
@@ -175,7 +214,7 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
             findings.append(fn_)
             results["artifacts"]["noise"] = str(art / "noise_residual.png")
             step(0.72, "Controllo della miniatura")
-            ft = image.thumbnail_check(wp, settings.exiftool_path)
+            ft = heif_support.thumbnail_check(wp) if fmt == "heif" else image.thumbnail_check(wp, settings.exiftool_path)
             if ft:
                 findings.append(ft)
             results["executed"].append("image")
@@ -339,7 +378,7 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         "Gli hash prima e dopo l'analisi sono diversi.", "Hash pre/post analisi", "integrity",
         evidence=f"SHA-256 {post.get('sha256', '')}", confidence="alta", significant=not same))
     results["executed_categories"] = sorted(c.value for c in executed)
-    tools = {"app": __version__}
+    tools = {"app": __version__, **heif_support.versions()}
     for t in ("exiftool", "ffprobe"):
         tl = get_tool(t, getattr(settings, f"{t}_path", ""))
         tools[t] = tl.version if tl else "non disponibile"
