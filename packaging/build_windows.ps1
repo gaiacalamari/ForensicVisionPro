@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $Root = Split-Path $PSScriptRoot -Parent
 Set-Location $Root
-$Version = "1.1.0"
+$Version = "1.2.0"
 New-Item -ItemType Directory -Force build | Out-Null
 Start-Transcript -Path "build\build.log" -Force | Out-Null
 
