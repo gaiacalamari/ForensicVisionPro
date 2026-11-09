@@ -23,6 +23,9 @@ def selfcheck_cli(argv: list[str]) -> int:
 def main() -> int:
     if "--selfcheck" in sys.argv:
         return selfcheck_cli(sys.argv)
+    if "--credits" in sys.argv:
+        from ..core.credits import credits_cli
+        return credits_cli(sys.argv)
     from PySide6.QtWidgets import QApplication
 
     from ..core.config import Settings

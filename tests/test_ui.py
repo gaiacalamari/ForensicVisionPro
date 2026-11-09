@@ -154,3 +154,14 @@ def test_pose_page(ui, tmp_path, monkeypatch):
     assert pp.persons.rowCount() >= 1 and pp.angles.rowCount() > 10 and pp.exports.rowCount() >= 4
     assert pp.art_combo.count() == 3 and not pp.view.item.pixmap().isNull()
     assert "discontinuità di scena" in pp.status.text()
+
+
+def test_credits_dialog(ui):
+    app, st, w = ui
+    w.go_to("Settings")
+    sp = w.pages["Settings"]
+    sp._credits()
+    app.processEvents()
+    txt = sp._credits_dialog.findChild(__import__("PySide6.QtWidgets", fromlist=["QTextBrowser"]).QTextBrowser).toPlainText()
+    assert "Phil Harvey" in txt and "Sports2D" in txt
+    sp._credits_dialog.close()

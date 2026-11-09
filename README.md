@@ -34,6 +34,24 @@ PYTHONPATH=src python -m fvp --selfcheck           # controllo del sistema
 PYTHONPATH=src python -m pytest -q                 # test
 ```
 
+## Crediti e licenze
+
+Forensic Vision Pro si basa su componenti di terze parti, che ringraziamo:
+
+- **Qt for Python**: The Qt Company.
+- **Pillow**: Jeffrey A. Clark e collaboratori.
+- **NumPy**: NumPy Developers.
+- **OpenCV**: OpenCV team.
+- **pillow-heif**: Alexander Piskun, che include libheif e libde265 di struktur AG e x265 di MulticoreWare.
+- **ONNX Runtime**: Microsoft.
+- **ExifTool**: Phil Harvey.
+- **FFmpeg**: FFmpeg developers, con build Windows di Gyan Doshi (gyan.dev).
+- **Modelli YOLOX e RTMPose**: OpenMMLab.
+
+Il programma si basa anche sulle metodologie di **Sports2D** e **Pose2Sim** di David Pagnon, su **rtmlib** di Tao Jiang e sul catalogo **StegoIntelligence** di CScorza.
+
+Autori, licenze, sorgenti dei componenti copyleft e obblighi di ridistribuzione sono in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md); i testi integrali delle licenze sono in [`licenses/`](licenses/). Dal programma: Impostazioni → Crediti e licenze, oppure `ForensicVisionPro --credits crediti.txt`.
+
 ## Documentazione
 
 - `docs/MANUALE_UTENTE.md` — manuale utente

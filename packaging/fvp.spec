@@ -15,7 +15,10 @@ if bin_dir.is_dir():
         datas.append((str(p), "bin/" + p.name if p.is_dir() else "bin"))
 # Dati di OpenCV (classificatori Haar per il rilevamento dei volti)
 datas += collect_data_files("cv2", includes=["data/*.xml"])
-datas += [(str(root / "docs"), "docs")]
+datas += [(str(root / "docs"), "docs"), (str(root / "THIRD_PARTY_NOTICES.md"), ".")]
+# Licenze di terze parti: raccolte da tools/collect_licenses.py (build_windows.ps1); in mancanza, i testi del repository
+lic = root / "build" / "third_party_licenses"
+datas += [(str(lic if lic.is_dir() else root / "licenses"), "licenses")]
 
 # ONNX Runtime (stima della posa): DLL native; i modelli .onnx sono in bin/ come gli altri strumenti
 try:

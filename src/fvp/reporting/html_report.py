@@ -353,6 +353,18 @@ def _exhibit(case: Case, item: dict) -> tuple[str, str]:
     return "".join(p), ""
 
 
+def _credits_html() -> str:
+    """Strumenti e metodologie di terze parti da cui derivano i risultati del report (autore e licenza)."""
+    from ..core.credits import BUILD, CREDITS
+    rows = "".join(f"<tr><th>{e(c.name)}</th><td>{e(c.authors)}</td><td>{e(c.use)}</td><td>{e(c.license)}</td>"
+                   f"<td class='mono small'>{e(c.url)}</td></tr>" for c in CREDITS if c.kind != BUILD)
+    return ("<details class='block'><summary>Strumenti e metodologie di terze parti</summary><div class='inner' "
+            "style='overflow-x:auto'><table class='data'><tr><th>Componente</th><th>Autori</th><th>Uso</th>"
+            f"<th>Licenza</th><th>Fonte</th></tr>{rows}</table><p class='small muted'>Le versioni usate per ogni "
+            "analisi sono riportate nella scheda di ciascun file (Strumenti). Testi integrali delle licenze nella "
+            "cartella licenses del programma.</p></div></details>")
+
+
 def render(case: Case, d: dict) -> str:
     c = d["case"]
     pairs = []
@@ -433,6 +445,7 @@ def render(case: Case, d: dict) -> str:
              + "</table></div></details>"
              f"<p class='small'>Registro delle operazioni: {'catena integra' if av['ok'] else 'CATENA NON VALIDA: ' + e(av['reason'])}"
              f" ({av['entries']} voci). Hash di testa: <span class='mono'>{e(av['head_hash'])}</span></p>"
+             + _credits_html() +
              "<h3>Conclusioni</h3><p class='muted'>Le conclusioni tecniche sono di competenza dell'analista, sulla base "
              "dei risultati e delle valutazioni registrate.</p></section>")
     p.append("<section id='glossario' class='card'><h2>Glossario</h2><dl class='facts' style='grid-template-columns:220px 1fr'>"

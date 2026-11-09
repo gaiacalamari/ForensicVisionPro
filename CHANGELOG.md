@@ -27,6 +27,16 @@
   tutte le sorgenti restituiscono lo stesso file.
 - Self-check: controllo facoltativo della stima della posa con un'inferenza reale.
 - Nuova dipendenza: onnxruntime.
+- Crediti e licenze di terze parti: registro unico (`fvp/core/credits.py`) con autori, uso, licenza e sorgenti di
+  ogni componente; `THIRD_PARTY_NOTICES.md` completo; testi integrali in `licenses/` (GPL-1/2/3, LGPL-2.1/3, Apache-2.0,
+  Artistic, BSD di Sports2D/Pose2Sim); sezione nel README; finestra Impostazioni → Crediti e licenze; comando
+  `--credits [file]`; tabella degli strumenti e metodologie di terze parti nel report HTML (Metodo e limiti).
+- Build: `tools/collect_licenses.py` raccoglie le licenze dei pacchetti effettivamente inclusi (comprese le librerie
+  native delle wheel di OpenCV, pillow-heif e ONNX Runtime) e ferma la build se un componente ne è privo; note e
+  licenze sono distribuite accanto all'eseguibile, nella versione portable e nell'installer (con collegamenti nel menu).
+- fetch_tools.py: `extract_optional` per estrarre il testo di licenza di FFmpeg dall'archivio.
+- Note di copyright nei file con codice derivato (Pose2Sim BSD-3, rtmlib Apache-2.0 con elenco delle modifiche).
+- Test: ogni pacchetto di requirements.txt e ogni strumento di tools.json deve avere un credito documentato.
 
 ## 1.1.0
 

@@ -50,6 +50,13 @@ EDGES = [("Nose", "LEye"), ("Nose", "REye"), ("LEye", "LEar"), ("REye", "REar"),
          ("LAnkle", "LSmallToe"), ("LAnkle", "LHeel"), ("RAnkle", "RBigToe"), ("RAnkle", "RSmallToe"),
          ("RAnkle", "RHeel")]
 
+# ---------------------------------------------------------------------------------------------------------------
+# ANGLE_DICT, points_to_angles, fixed_angle e visible_side sono ripresi e adattati da Pose2Sim/common.py e
+# Sports2D/process.py:
+#     Copyright (c) 2022, perfanalytics. All rights reserved.
+#     Distribuiti con licenza BSD 3-Clause: testo completo, condizioni ed esclusione di garanzia in
+#     licenses/BSD-3-Clause-perfanalytics.txt. Il nome del titolare non è usato per promuovere questo software.
+# ---------------------------------------------------------------------------------------------------------------
 # Definizioni degli angoli di Sports2D/Pose2Sim (Pose2Sim/common.py): keypoint, tipo, offset, fattore di scala.
 # 'right wrist', 'left wrist', 'right hand', 'left hand' richiedono il keypoint Index, assente in HALPE-26: sono
 # esclusi (in Sports2D, con lo stesso modello, risultano sempre NaN).
