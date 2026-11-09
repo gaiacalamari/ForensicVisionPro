@@ -1,5 +1,6 @@
 """Interfaccia (offscreen): flusso obbligatorio, tema, caricamento, pagine."""
 import os
+from pathlib import Path
 
 import pytest
 
@@ -88,6 +89,41 @@ def test_load_single_and_folder(ui, dataset, tmp_path):
     _wait(app, st)
     assert all(q["status"].startswith("analizzato") for q in lp.queue), [q["status"] for q in lp.queue]
     assert len(st.case.exhibits()) == 3
+
+
+def test_load_accepts_video_and_audio(ui, dataset, tmp_path):
+    """I video e l'audio sono acquisiti con il filtro predefinito; i file non multimediali restano esclusi."""
+    import shutil
+    import wave
+
+    import cv2
+    import numpy as np
+    app, st, w = ui
+    cp = w.pages["Case Management"]
+    cp.cid.setText("UI-VIDEO")
+    cp.ctitle.setText("video")
+    cp._create()
+    lp = w.pages["Carica e analizza"]
+    assert lp.only_img.isChecked()
+    vid = tmp_path / "clip.avi"
+    vw = cv2.VideoWriter(str(vid), cv2.VideoWriter_fourcc(*"MJPG"), 10, (64, 48))
+    for i in range(10):
+        vw.write(np.full((48, 64, 3), i * 20, np.uint8))
+    vw.release()
+    wav = tmp_path / "voce.wav"
+    with wave.open(str(wav), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(8000)
+        wf.writeframes(b"\x00\x00" * 800)
+    (tmp_path / "note.txt").write_text("non multimediale")
+    shutil.copy(dataset / "original.jpg", tmp_path / "foto.jpg")
+    lp._add_paths([vid, wav, tmp_path / "note.txt", tmp_path / "foto.jpg"])
+    kinds = {Path(q["path"]).name: q["kind"] for q in lp.queue}
+    assert kinds == {"clip.avi": "video", "voce.wav": "audio", "foto.jpg": "immagine"}
+    assert "Persone e movimento" in lp.msg.text()       # suggerimento per l'analisi dei movimenti
+    lp.preset.setCurrentText("Persone e movimento (video)")
+    assert lp.checks["pose"].isChecked() and lp.checks["video"].isChecked()
 
 
 def test_all_pages_render(ui, dataset):

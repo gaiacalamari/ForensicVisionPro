@@ -45,7 +45,7 @@ LABELS = {
 }
 HINTS = {
     "Case Management": "Crea o apri un caso: è il primo passo obbligatorio.",
-    "Carica e analizza": "Aggiungi immagini o cartelle al caso e avvia l'analisi.",
+    "Carica e analizza": "Aggiungi immagini, video, audio o cartelle al caso e avvia l'analisi.",
     "Dashboard": "Cosa ha trovato il programma, in parole semplici.",
     "Image Forensics": "L'immagine affiancata alle mappe di analisi (ELA, copia di regioni, contrasto esaltato…).",
     "Manipulation Detection": "Segni di ritocchi, regioni copiate, ricompressioni.",

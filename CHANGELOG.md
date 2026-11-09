@@ -2,6 +2,9 @@
 
 ## 1.3.0 (in corso)
 
+- Carica e analizza: video (MP4, MOV, 3GP, AVI, MKV, WebM, MPEG-PS/TS) e audio sono acquisiti con il filtro
+  predefinito, che ora esclude solo i file non multimediali (sempre sui magic bytes). Selettore file con filtri
+  Immagini/Video/Audio, colonna "Tipo" nell'elenco e suggerimento del profilo "Persone e movimento" per i video.
 - HEIC/HEIF: decodifica con pillow-heif; i file iPhone passano per tutte le analisi dei pixel (prima erano esclusi).
 - Nuovo parser HEIF: item, iloc, iref, proprietà, griglia di tile, miniature, Exif/XMP, immagini ausiliarie
   (gain map HDR, matte del Ritratto), extent oltre la fine del file, byte non referenziati in mdat.

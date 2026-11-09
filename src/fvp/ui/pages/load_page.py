@@ -1,4 +1,4 @@
-"""Carica e analizza: una o più immagini, oppure intere cartelle, nel caso aperto."""
+"""Carica e analizza: immagini, video e audio (singoli file o intere cartelle) nel caso aperto."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,10 +38,17 @@ PRESETS = {
 PICTURE = IMAGE_FORMATS | {"heif", "avif"}
 MEDIA = PICTURE | VIDEO_FORMATS | AUDIO_FORMATS
 
+# Filtri del selettore file: solo un aiuto alla navigazione. L'acquisizione decide sempre in base ai magic bytes.
+IMAGE_GLOBS = "*.jpg *.jpeg *.jpe *.jfif *.png *.tif *.tiff *.dng *.bmp *.gif *.webp *.heic *.heif *.hif *.avif"
+VIDEO_GLOBS = ("*.mp4 *.m4v *.mov *.qt *.3gp *.3g2 *.avi *.mkv *.mka *.webm *.mpg *.mpeg *.vob *.ts *.mts *.m2ts")
+AUDIO_GLOBS = "*.wav *.mp3 *.flac *.ogg *.oga *.opus *.aac *.m4a"
+FILE_FILTER = (f"Immagini, video e audio ({IMAGE_GLOBS} {VIDEO_GLOBS} {AUDIO_GLOBS});;"
+               f"Immagini ({IMAGE_GLOBS});;Video ({VIDEO_GLOBS});;Audio ({AUDIO_GLOBS});;Tutti i file (*)")
+
 
 class LoadPage(Page):
     title = "Carica e analizza"
-    intro = ("Aggiungi una o più immagini, oppure una cartella intera, al caso aperto. Ogni file diventa un reperto: "
+    intro = ("Aggiungi immagini, video o audio, oppure una cartella intera, al caso aperto. Ogni file diventa un reperto: "
              "viene copiato con hash verificati, la copia è resa di sola lettura e le analisi lavorano solo su di "
              "essa. Puoi anche trascinare file e cartelle in questa pagina.")
 
@@ -53,15 +60,16 @@ class LoadPage(Page):
         self.case_lbl.setWordWrap(True)
         self.root.addWidget(self.case_lbl)
         row = QHBoxLayout()
-        b1 = QPushButton("Aggiungi immagini…")
+        b1 = QPushButton("Aggiungi file…")
         b1.clicked.connect(self._add_files)
         b2 = QPushButton("Aggiungi cartella…")
         b2.clicked.connect(self._add_folder)
         self.recursive = QCheckBox("includi sottocartelle")
         self.recursive.setChecked(True)
-        self.only_img = QCheckBox("solo immagini (riconosciute dai magic bytes, non dall'estensione)")
+        self.only_img = QCheckBox("solo immagini, video e audio (riconosciuti dai magic bytes, non dall'estensione)")
         self.only_img.setChecked(True)
-        self.only_img.setToolTip("Se disattivato vengono acquisiti anche video, audio WAV e qualsiasi altro file.")
+        self.only_img.setToolTip("Se disattivato viene acquisito qualsiasi file (documenti, archivi, formati non "
+                                 "riconosciuti).")
         b3 = QPushButton("Svuota elenco")
         b3.clicked.connect(self._clear)
         for w in (b1, b2, self.recursive, self.only_img):
@@ -69,11 +77,11 @@ class LoadPage(Page):
         row.addStretch(1)
         row.addWidget(b3)
         self.root.addLayout(row)
-        self.drop = QLabel("Trascina qui immagini o cartelle")
+        self.drop = QLabel("Trascina qui immagini, video, audio o cartelle")
         self.drop.setObjectName("DropZone")
         self.drop.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.root.addWidget(self.drop)
-        self.table = make_table(["File", "Dimensione", "Formato rilevato", "Stato"])
+        self.table = make_table(["File", "Tipo", "Dimensione", "Formato rilevato", "Stato"])
         self.root.addWidget(self.table, 1)
         g = QGroupBox("Analisi")
         gl = QVBoxLayout(g)
@@ -128,7 +136,8 @@ class LoadPage(Page):
         self.start.setText(f"Acquisisci e analizza {len(pending)} file" if pending else "Acquisisci e analizza")
         self.start.setEnabled(bool(c and pending) and not self.state.busy)
         self.again.setEnabled(bool(c and self.state.exhibit_id) and not self.state.busy)
-        fill_table(self.table, [[q["path"], f"{q['size']:,}", q["format"], q["status"]] for q in self.queue],
+        fill_table(self.table, [[q["path"], q.get("kind", ""), f"{q['size']:,}", q["format"], q["status"]]
+                                for q in self.queue],
                    sortable=False)
 
     def _add_paths(self, paths: list[Path]) -> None:
@@ -149,20 +158,26 @@ class LoadPage(Page):
             except OSError:
                 skipped += 1
                 continue
-            if self.only_img.isChecked() and info["format"] not in PICTURE:
+            if self.only_img.isChecked() and info["format"] not in MEDIA:
                 skipped += 1
                 continue
-            self.queue.append({"path": str(f), "size": info["size"], "format": info["format_name"],
-                               "status": "in attesa"})
+            fmt = info["format"]
+            kind = ("immagine" if fmt in PICTURE else "video" if fmt in VIDEO_FORMATS else
+                    "audio" if fmt in AUDIO_FORMATS else "altro")
+            self.queue.append({"path": str(f), "size": info["size"], "format": info["format_name"] or "sconosciuto",
+                               "kind": kind, "status": "in attesa"})
             known.add(str(f))
-        self.msg.setText(f"{len(files) - skipped} file aggiunti" + (f", {skipped} esclusi (non immagini o illeggibili)."
-                                                                     if skipped else "."))
+        msg = f"{len(files) - skipped} file aggiunti" + (f", {skipped} esclusi (non multimediali o illeggibili)."
+                                                         if skipped else ".")
+        n_video = sum(1 for q in self.queue if q["status"] == "in attesa" and q.get("kind") == "video")
+        if n_video and not self.checks["pose"].isChecked():
+            msg += (f" {n_video} video in elenco: per l'analisi dei movimenti scegli il profilo "
+                    "'Persone e movimento (video)' oppure attiva il modulo Persone e movimento.")
+        self.msg.setText(msg)
         self.refresh()
 
     def _add_files(self) -> None:
-        fs, _ = QFileDialog.getOpenFileNames(self, "Immagini da acquisire", "",
-                                             "Immagini (*.jpg *.jpeg *.png *.tif *.tiff *.bmp *.gif *.webp *.heic *.heif *.hif *.avif);;"
-                                             "Tutti i file (*)")
+        fs, _ = QFileDialog.getOpenFileNames(self, "File da acquisire", "", FILE_FILTER)
         if fs:
             self._add_paths([Path(f) for f in fs])
 

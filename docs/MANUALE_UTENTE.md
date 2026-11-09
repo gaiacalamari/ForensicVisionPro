@@ -12,8 +12,9 @@ Finché non c'è un caso aperto sono attive solo **Casi** e **Impostazioni**. In
 
 In **Carica e analizza**:
 
-- **Aggiungi immagini…** per uno o più file, **Aggiungi cartella…** per una cartella intera (con "includi sottocartelle" anche le sottocartelle), oppure trascina file e cartelle nella pagina;
-- con "solo immagini" attivo vengono considerati solo i file che sono davvero immagini secondo i magic bytes, qualunque sia l'estensione; disattivalo per includere video, audio WAV e altri file;
+- **Aggiungi file…** per una o più immagini, video o audio, **Aggiungi cartella…** per una cartella intera (con "includi sottocartelle" anche le sottocartelle), oppure trascina file e cartelle nella pagina;
+- con "solo immagini, video e audio" attivo vengono considerati solo i file che sono davvero immagini (JPEG, PNG, TIFF, BMP, GIF, WebP, HEIC/HEIF, AVIF), video (MP4, MOV, 3GP, AVI, MKV, WebM, MPEG-PS/TS) o audio (WAV, MP3, FLAC, OGG, AAC) secondo i magic bytes, qualunque sia l'estensione; disattivalo per includere qualsiasi altro file;
+- sui video il profilo *Completa* esegue struttura del contenitore (atom MP4/MOV), metadati ExifTool (QuickTime, Keys, XMP, GPS), coerenza temporale e FFprobe; per l'analisi dei movimenti scegli il profilo *Persone e movimento (video)* (richiede i modelli, vedi sotto);
 - scegli il profilo: **Completa**, **Rapida** o **Contenuti nascosti**; puoi anche selezionare i moduli uno per uno;
 - **Acquisisci e analizza**: ogni file viene copiato nel caso con hash verificati e analizzato. La colonna Stato mostra l'esito file per file; un file problematico non interrompe gli altri.
 
