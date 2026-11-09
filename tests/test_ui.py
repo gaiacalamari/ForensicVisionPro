@@ -128,3 +128,29 @@ def test_all_pages_render(ui, dataset):
     sp.chan.setCurrentIndex(0)
     sp.bit.setValue(0)
     assert not sp.sync.views[1].item.pixmap().isNull()
+
+
+def test_pose_page(ui, tmp_path, monkeypatch):
+    from test_pose import FakeEstimator, make_video
+
+    from fvp.core.pipeline import analyze_exhibit
+    from fvp.engines import pose_model
+    monkeypatch.setattr(pose_model, "load", lambda *a, **k: FakeEstimator())
+    app, st, w = ui
+    cp = w.pages["Case Management"]
+    cp.cid.setText("UI-POSE")
+    cp.ctitle.setText("posa")
+    cp._create()
+    c = st.case
+    ex = c.acquire(make_video(tmp_path / "taglio.avi", cut=40), "tester")
+    analyze_exhibit(c, ex.id, "tester", st.settings, ["integrity", "signature", "pose"])
+    st.set_case(c)
+    st.set_exhibit(ex.id)
+    w.go_to("Human Pose")
+    app.processEvents()
+    pp = w.pages["Human Pose"]
+    assert w.current_name() == "Human Pose"
+    assert pp.trans.rowCount() == 1 and pp.trans.item(0, 0).text() == "40" and pp.trans.item(0, 2).text() == "scena"
+    assert pp.persons.rowCount() >= 1 and pp.angles.rowCount() > 10 and pp.exports.rowCount() >= 4
+    assert pp.art_combo.count() == 3 and not pp.view.item.pixmap().isNull()
+    assert "discontinuità di scena" in pp.status.text()

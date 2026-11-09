@@ -39,8 +39,18 @@ MAP_HELP = {
     "faint": "Il contrasto delle zone uniformi è amplificato: scritte o segni quasi invisibili diventano visibili.",
     "faces": "Volti rilevati automaticamente (riquadri).",
     "prnu_local": "Quanto ogni zona corrisponde all'impronta del sensore: zone scure in aree simili sono sospette.",
+    "pose": "Lo scheletro stimato di ogni persona (sinistra in arancio, destra in blu) con il numero di traccia.",
+    "pose_motion": "Velocità massima delle persone da un frame al successivo. Le linee verticali rosse indicano "
+                   "discontinuità di scena, quelle arancio salti isolati.",
+    "pose_jumps": "Coppie di fotogrammi consecutivi (prima e dopo) nei punti di discontinuità più rilevanti.",
 }
 GLOSSARY = [
+    ("Posa / keypoint", "Punti del corpo (testa, spalle, gomiti, anche, ginocchia, caviglie, piedi) stimati da un "
+     "modello di intelligenza artificiale su ogni persona. Uniti formano lo scheletro; da essi si calcolano gli angoli "
+     "articolari con le definizioni di Sports2D. Sono coordinate in pixel, non misure in centimetri."),
+    ("Discontinuità del movimento", "Un cambiamento di posizione, dimensione o identità delle persone tra due frame "
+     "consecutivi troppo rapido per un movimento reale. Può indicare un taglio o un'inserzione nel video, ma anche un "
+     "cambio di inquadratura o un errore di riconoscimento."),
     ("Hash (impronta digitale)", "Un codice calcolato dal contenuto del file: se cambia anche un solo byte, cambia "
      "l'hash. Serve a dimostrare che il file analizzato è identico a quello acquisito."),
     ("Metadati / EXIF", "Informazioni scritte nel file da fotocamera o programmi (modello, data, software, GPS). "
@@ -273,10 +283,10 @@ def _exhibit(case: Case, item: dict) -> tuple[str, str]:
     p.append("<h3>Esito per area</h3><div class='areas'>")
     irrelevant = {"immagine": {Category.VIDEO_INTEGRITY, Category.AUDIO_INTEGRITY, Category.DEEPFAKE},
                   "audio": {Category.IMAGE_MANIPULATION, Category.VIDEO_INTEGRITY, Category.DEEPFAKE, Category.SENSOR,
-                            Category.AI_GENERATION},
+                            Category.AI_GENERATION, Category.HUMAN_POSE},
                   "video": {Category.SENSOR}}.get(kind, set())
     for cat, s_ in status.items():
-        if s_ == Status.GREY and (cat in irrelevant or cat == Category.SENSOR):
+        if s_ == Status.GREY and (cat in irrelevant or cat in (Category.SENSOR, Category.HUMAN_POSE)):
             continue
         p.append(f"<div class='area' title='{e(explain.CATEGORY_HELP[cat])}'><span>{e(explain.CATEGORY_LABELS[cat])}</span>"
                  f"{chip(s_)}</div>")

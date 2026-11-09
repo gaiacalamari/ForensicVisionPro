@@ -13,7 +13,7 @@ from pathlib import Path
 from .. import __version__
 from ..cases.store import Case
 from ..engines import (case_context, compare, device, hashing, heif_support, hidden_text, image, image_extra, jpeg_forensics, metadata,
-                       prnu, signature, stego, stegointel, timestamps, video)
+                       pose, prnu, signature, stego, stegointel, timestamps, video)
 from ..parsers.registry import parser_for
 from .audit import utc_now
 from .config import Settings
@@ -25,12 +25,14 @@ IMAGE_FORMATS = {"jpeg", "png", "gif", "tiff", "bmp", "webp", "heif", "avif"}
 VIDEO_FORMATS = {"mp4", "mov", "3gp", "avi", "mkv", "webm", "mpeg_ps", "mpeg_ts", "m2ts"}
 AUDIO_FORMATS = {"wav", "mp3", "flac", "ogg", "aac"}
 ALL_MODULES = ["integrity", "signature", "structure", "metadata", "timestamps", "device", "case_context", "image", "jpeg_advanced", "median",
-               "copymove", "stego", "stegointel", "hidden_text", "quality", "prnu", "video", "carving_scan"]
+               "copymove", "stego", "stegointel", "hidden_text", "quality", "prnu", "video", "pose", "carving_scan"]
 ARTIFACT_LABELS = {
     "ela": "Error Level Analysis (q90)", "ela_multi": "ELA multi-qualità (composita)", "ghost": "JPEG ghost",
     "noise": "Residuo di rumore", "median": "Stabilità sotto filtro mediano", "copymove": "Copy-move (overlay)",
     "lsb": "Piani LSB (R, G, B)", "faces": "Volti rilevati", "prnu_local": "Correlazione locale PRNU",
     "faint": "Contrasto esaltato (testo quasi invisibile)",
+    "pose": "Posa delle persone (scheletro)", "pose_motion": "Velocità tra frame (discontinuità)",
+    "pose_jumps": "Salti tra frame (prima / dopo)",
 }
 
 
@@ -342,9 +344,31 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         except Exception as e:  # noqa: BLE001
             findings.append(_fail("video", Category.VIDEO_INTEGRITY, e))
 
+    if "pose" in modules and (fmt_pixels or fmt in VIDEO_FORMATS):
+        try:
+            step(0.80, "Persone e movimento: stima della posa")
+            executed.add(Category.HUMAN_POSE)
+
+            def sub(f: float, msg: str) -> None:
+                step(0.80 + 0.10 * f, msg)
+            pres, pfs = pose.analyze(wp, "image" if fmt_pixels else "video", art / "pose", settings,
+                                     progress=sub, cancel=cancel)
+            results["artifacts"].update(pres.pop("artifacts", {}))
+            results["pose"] = pres
+            findings.extend(pfs)
+            results["executed"].append("pose")
+        except Cancelled:
+            raise
+        except pose.PoseUnavailable as e:
+            findings.append(Finding(Category.HUMAN_POSE, Level.UNDETERMINED, "Stima della posa non disponibile", str(e),
+                                    "—", "pose", limitations="Installare ONNX Runtime e i modelli con "
+                                                             "tools/fetch_tools.py (vedi manuale, 'Persone e movimento')."))
+        except Exception as e:  # noqa: BLE001
+            findings.append(_fail("pose", Category.HUMAN_POSE, e))
+
     if "carving_scan" in modules:
         try:
-            step(0.8, "Scansione delle firme incorporate")
+            step(0.91, "Scansione delle firme incorporate")
             hits = signature.scan_signatures(wp, cancel=cancel)
             results["embedded_signatures"] = hits
             inner = [h for h in hits if h["offset"] > 0 and h.get("valid", True)]
@@ -387,5 +411,11 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         tools.update({"pillow": PIL.__version__, "numpy": numpy.__version__, "opencv": cv2.__version__})
     except ImportError:
         pass
+    if "pose" in results:
+        eng = results["pose"].get("engine", {})
+        tools["onnxruntime"] = eng.get("runtime", "")
+        for role in ("detector", "pose"):
+            if eng.get(role):
+                tools[f"pose_{role}_model"] = f"{eng[role]['file']} sha256:{eng[role]['sha256']}"
     progress(1.0, "Completato")
     return case.save_analysis(ex_id, operator, started, modules, findings, results, pre, post, tools)

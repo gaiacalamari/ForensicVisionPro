@@ -20,6 +20,7 @@ from .pages.hex_page import HexPage
 from .pages.integrity import IntegrityPage
 from .pages.load_page import LoadPage
 from .pages.metadata_timeline import MetadataPage, TimelinePage
+from .pages.pose_page import PosePage
 from .pages.misc_pages import ReportsPage, SettingsPage
 from .state import AppState
 from .theme import C
@@ -28,7 +29,7 @@ from .theme import C
 SECTIONS = [
     ("FLUSSO DI LAVORO", ["Case Management", "Carica e analizza", "Dashboard"]),
     ("ANALISI", ["Image Forensics", "Manipulation Detection", "Steganalysis", "Metadata Analyzer",
-                 "Timeline Analyzer", "PRNU / Sensore", "AI Detection", "Video Forensics"]),
+                 "Timeline Analyzer", "PRNU / Sensore", "AI Detection", "Video Forensics", "Human Pose"]),
     ("STRUMENTI", ["Comparison Tool", "Hex Viewer", "File Integrity", "Reports"]),
     ("SISTEMA", ["Settings"]),
 ]
@@ -38,7 +39,8 @@ LABELS = {
     "Image Forensics": "Analisi visiva", "Manipulation Detection": "Possibili modifiche",
     "Steganalysis": "Contenuti nascosti", "Metadata Analyzer": "Metadati", "Timeline Analyzer": "Date e orari",
     "PRNU / Sensore": "Fotocamera di origine", "AI Detection": "Intelligenza artificiale",
-    "Video Forensics": "Video e audio", "Comparison Tool": "Confronta immagini", "Hex Viewer": "Byte del file (Hex)",
+    "Video Forensics": "Video e audio", "Human Pose": "Persone e movimento",
+    "Comparison Tool": "Confronta immagini", "Hex Viewer": "Byte del file (Hex)",
     "File Integrity": "Verifica hash", "Reports": "Report", "Settings": "Impostazioni",
 }
 HINTS = {
@@ -53,6 +55,7 @@ HINTS = {
     "PRNU / Sensore": "Confronto con l'impronta del sensore di fotocamere note.",
     "AI Detection": "Indizi di generazione con intelligenza artificiale nei metadati.",
     "Video Forensics": "Tracce, durate e codifica di video e audio.",
+    "Human Pose": "Posa e angoli delle persone, continuità del movimento tra i frame (Sports2D).",
     "Comparison Tool": "Confronta due immagini e trova quasi-duplicati.",
     "Hex Viewer": "Il contenuto grezzo del file, byte per byte (sola lettura).",
     "File Integrity": "Calcola e confronta le impronte hash di file e cartelle.",
@@ -140,7 +143,8 @@ class MainWindow(QMainWindow):
             "Image Forensics": ImageForensicsPage(s), "Manipulation Detection": ManipulationPage(s),
             "Steganalysis": SteganalysisPage(s), "Metadata Analyzer": MetadataPage(s),
             "Timeline Analyzer": TimelinePage(s), "PRNU / Sensore": PrnuPage(s), "AI Detection": AIDetectionPage(s),
-            "Video Forensics": VideoForensicsPage(s), "Comparison Tool": ComparisonPage(s), "Hex Viewer": HexPage(s),
+            "Video Forensics": VideoForensicsPage(s), "Human Pose": PosePage(s),
+            "Comparison Tool": ComparisonPage(s), "Hex Viewer": HexPage(s),
             "File Integrity": IntegrityPage(s), "Reports": ReportsPage(s), "Settings": SettingsPage(s)}
         for k in NAV:
             self.stack.addWidget(self.pages[k])

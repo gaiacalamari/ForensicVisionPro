@@ -12,7 +12,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pyflakes", "pyinstaller>=6.6"]
+pose = ["onnxruntime>=1.17"]
+dev = ["pytest>=8", "pyflakes", "pyinstaller>=6.6", "onnx>=1.15"]
 
 [project.gui-scripts]
 forensic-vision-pro = "fvp.ui.app:main"

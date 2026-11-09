@@ -16,6 +16,17 @@
 - Carica e analizza: acquisisce tutto il lotto prima di analizzarlo, così il confronto tra reperti non dipende
   dall'ordine dei file.
 - Aggiunto .gitignore.
+- Nuovo modulo "pose" e pagina **Persone e movimento**, con la metodologia di Sports2D (D. Pagnon) reimplementata
+  senza le sue dipendenze: stima della posa YOLOX + RTMPose HALPE-26 con ONNX Runtime (solo CPU, modelli locali
+  verificati con SHA-256), tracciamento, angoli articolari e segmentali di Sports2D/Pose2Sim, Butterworth a fase zero,
+  esportazioni CSV/TRC/MOT. Indicatori forensi sui dati grezzi: discontinuità di scena (salti di posizione o di
+  scala, sostituzione delle persone, confermati da timestamp e differenza del frame), salti isolati, cadenza del
+  passo, posture insolite. Mappe: scheletro, velocità tra frame, coppie di fotogrammi prima/dopo.
+- Nuova categoria "Persone e movimento" nel riepilogo e nel report; voci nel glossario.
+- fetch_tools.py: voci facoltative che non bloccano la build e `--pin` per fissare lo SHA-256 di un download solo se
+  tutte le sorgenti restituiscono lo stesso file.
+- Self-check: controllo facoltativo della stima della posa con un'inferenza reale.
+- Nuova dipendenza: onnxruntime.
 
 ## 1.1.0
 

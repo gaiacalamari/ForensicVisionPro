@@ -19,6 +19,8 @@ All AI-generated or AI-assisted content was reviewed, modified where necessary, 
 
 - No case data, evidence, personal data or confidential information was submitted to AI services during development.
 - The tool does not send data to AI services at runtime, unless explicitly stated elsewhere in this repository.
+  The optional "Persone e movimento" module runs local pose-estimation models (ONNX, CPU only) on the evidence;
+  no data leaves the machine and the SHA-256 of each model is recorded in every analysis.
 - AI was not used to make investigative or evidentiary judgements.
 
 ## Note for forensic use
