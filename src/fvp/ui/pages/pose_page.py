@@ -17,7 +17,8 @@ from ..widgets.imageviews import SyncGroup
 from ..widgets.motion import AngleChart, VideoPlayer
 
 POSE_ARTS = ("pose", "pose_angles", "pose_jumps", "pose_motion", "sports2d_angles")
-SRC_FVP, SRC_S2D = "fvp", "sports2d"
+SRC_FVP, SRC_S2D, SRC_IK = "fvp", "sports2d", "opensim"
+IK_DEFAULT = ("knee angle r", "knee angle l", "hip flexion r", "hip flexion l")
 
 
 class PosePage(Page):
@@ -251,6 +252,11 @@ class PosePage(Page):
             persons = [(Path(m).stem.replace("reperto_Sports2D_", "").replace("reperto_", ""), m) for m in sp.get("mot", [])]
             srcs[SRC_S2D] = {"label": f"Sports2D {sp.get('versions', {}).get('sports2d', '')} originale",
                              "video": sp.get("video", ""), "persons": persons, "marks": []}
+        osm = (sp or {}).get("opensim") or {}
+        if osm.get("motion"):
+            srcs[SRC_IK] = {"label": "OpenSim: cinematica inversa (Pose2Sim)", "video": sp.get("video", ""),
+                            "persons": [(Path(m).stem.replace("reperto_Sports2D_", ""), m) for m in osm["motion"]],
+                            "marks": []}
         cur = self.src.currentData()
         self._sources = srcs
         self.src.blockSignals(True)
@@ -304,7 +310,8 @@ class PosePage(Page):
             self.chart.set_data([], {}, title=f"{Path(path).name}: {e}")
             return
         order = [n for n in ANGLE_NAMES if n in cols] + [n for n in cols if n not in ANGLE_NAMES]
-        default = prev & set(order) or {n for n in ("right knee", "left knee", "right hip", "left hip") if n in cols}
+        default = prev & set(order) or {n for n in ("right knee", "left knee", "right hip", "left hip") + IK_DEFAULT
+                                        if n in cols}
         if not default:
             default = set(order[:4])
         series = {}
@@ -343,10 +350,18 @@ class PosePage(Page):
         self.s2d_run.clicked.connect(lambda: self._analyze({"pose", "sports2d"}))
         self.s2d_open = QPushButton("Apri la cartella dei risultati")
         self.s2d_open.clicked.connect(self._s2d_open_dir)
-        for b in (self.s2d_check, self.s2d_run, self.s2d_open):
+        self.osim_open = QPushButton("Apri il modello in OpenSim")
+        self.osim_open.setToolTip("Apre il file .osim con il programma associato (OpenSim). Poi in OpenSim: File > "
+                                  "Load Motion e scegliere il file *_ik.mot della stessa persona.")
+        self.osim_open.clicked.connect(self._osim_open)
+        for b in (self.s2d_check, self.s2d_run, self.s2d_open, self.osim_open):
             row.addWidget(b)
         row.addStretch(1)
         lay.addLayout(row)
+        self.osim_info = QLabel()
+        self.osim_info.setWordWrap(True)
+        self.osim_info.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lay.addWidget(self.osim_info)
         self.s2d_status = QLabel("Ambiente non ancora verificato.")
         self.s2d_status.setWordWrap(True)
         self.s2d_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -372,6 +387,21 @@ class PosePage(Page):
         sp = (an or {}).get("results", {}).get("sports2d")
         self.s2d_run.setEnabled(bool(self.state.case and self.state.exhibit_id) and not self.state.busy)
         self.s2d_open.setEnabled(bool(sp))
+        osm = (sp or {}).get("opensim") or {}
+        self.osim_open.setEnabled(bool(osm.get("model")))
+        if osm.get("model"):
+            hn = (f"statura presunta {osm['height_m']:g} m (non documentata): dimensioni in scala arbitraria"
+                  if osm.get("height_assumed") else f"statura documentata {osm.get('height_m')} m")
+            self.osim_info.setText(
+                f"<b>Modello OpenSim pronto</b> ({hn}).<br>Modello: {', '.join(Path(m).name for m in osm['model'])}"
+                f"<br>Movimento: {', '.join(Path(m).name for m in osm['motion'])}<br>In OpenSim: File &gt; Open "
+                "Model (.osim), poi File &gt; Load Motion (*_ik.mot) e Play. OpenSim si scarica gratis da "
+                "simtk.org/projects/opensim. Le curve della cinematica inversa sono anche nella scheda 'Video e "
+                "angoli', fonte 'OpenSim'.")
+        elif osm.get("requested"):
+            self.osim_info.setText("Modello OpenSim richiesto ma non prodotto: vedi la scheda Risultati e sports2d.log.")
+        else:
+            self.osim_info.setText("")
         if not sp:
             self.s2d_files.setRowCount(0)
             self.s2d_meta.setRowCount(0)
@@ -385,6 +415,15 @@ class PosePage(Page):
         rows += [[f"versione {k}", v] for k, v in sp.get("versions", {}).items() if v]
         rows += [[f"modello in cache: {m['file']}", m["sha256"]] for m in sp.get("models_cache", [])]
         fill_table(self.s2d_meta, rows, sortable=False)
+
+    def _osim_open(self) -> None:
+        an = self.state.last_analysis()
+        osm = ((an or {}).get("results", {}).get("sports2d") or {}).get("opensim") or {}
+        if osm.get("model"):
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(osm["model"][0])):
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(osm["model"][0]).parent)))
+            self.state.case.audit.append(self.state.operator, "apertura_esterna", {
+                "exhibit": self.state.exhibit_id, "file": osm["model"][0], "programma": "OpenSim"})
 
     def _s2d_open_dir(self) -> None:
         an = self.state.last_analysis()

@@ -2,6 +2,10 @@
 
 ## 1.3.0 (in corso)
 
+- Sports2D/Pose2Sim: modello OpenSim scalato (.osim) e cinematica inversa (*_ik.mot) creati di default, con
+  LEGGIMI_OpenSim.txt accanto ai file, pulsante "Apri il modello in OpenSim" e curve della cinematica inversa nel
+  lettore (fonte "OpenSim"). Statura e massa documentate impostabili; senza statura il modello usa 1,70 m e i
+  risultati la dichiarano presunta.
 - Persone e movimento: video annotato come Sports2D (scheletro, angoli sulle articolazioni, numero di frame e tempo
   su ogni fotogramma), attivo di default; lettore integrato frame per frame con grafico degli angoli sincronizzato e
   discontinuità evidenziate; grafici PNG degli angoli per persona con SHA-256.

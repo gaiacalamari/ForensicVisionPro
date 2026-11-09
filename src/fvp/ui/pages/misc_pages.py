@@ -133,14 +133,26 @@ class SettingsPage(Page):
         self.s2d_h.setRange(0.0, 2.5)
         self.s2d_h.setDecimals(2)
         self.s2d_h.setSingleStep(0.01)
-        self.s2d_h.setSpecialValueText("non indicata (nessuna conversione in metri)")
+        self.s2d_h.setSpecialValueText("non documentata (per OpenSim: 1,70 m dichiarata come presunta)")
         self.s2d_h.setValue(s.sports2d_person_height_m)
-        self.s2d_h.setToolTip("Statura nota della prima persona, in metri: Sports2D la usa per convertire i pixel in "
-                              "metri. Lasciare a 0 se non è documentata: una statura presunta altera ogni misura.")
+        self.s2d_h.setToolTip("Statura documentata della persona, in metri: Sports2D la usa per convertire i pixel "
+                              "in metri e Pose2Sim per scalare il modello OpenSim. Se non è documentata lasciare 0: "
+                              "il modello viene creato con 1,70 m e i risultati lo dichiarano come statura presunta "
+                              "(gli angoli articolari non ne dipendono).")
         f5.addRow("Statura di riferimento (m)", self.s2d_h)
-        self.s2d_ik = QCheckBox("Cinematica inversa OpenSim tramite Pose2Sim (richiede la statura)")
-        self.s2d_ik.setChecked(s.sports2d_do_ik)
+        self.s2d_mass = QDoubleSpinBox()
+        self.s2d_mass.setRange(0.0, 300.0)
+        self.s2d_mass.setDecimals(1)
+        self.s2d_mass.setSpecialValueText("non documentata (influisce solo sulle forze, non sul movimento)")
+        self.s2d_mass.setValue(s.sports2d_person_mass_kg)
+        f5.addRow("Massa di riferimento (kg)", self.s2d_mass)
+        self.s2d_ik = QCheckBox("Crea il modello OpenSim (.osim) e il movimento (*_ik.mot) con Pose2Sim, da aprire con "
+                                "OpenSim")
+        self.s2d_ik.setChecked(s.sports2d_opensim)
         f5.addRow("", self.s2d_ik)
+        self.s2d_simple = QCheckBox("Modello OpenSim semplificato (10 volte più rapido, senza muscoli)")
+        self.s2d_simple.setChecked(s.sports2d_simple_model)
+        f5.addRow("", self.s2d_simple)
         self.root.addWidget(g5)
         b = QPushButton("Salva impostazioni")
         b.setObjectName("Primary")
@@ -237,7 +249,9 @@ class SettingsPage(Page):
         s.pose_annotated_video = self.pose_video.isChecked()
         s.sports2d_python = self.s2d_py.text().strip()
         s.sports2d_person_height_m = round(self.s2d_h.value(), 2)
-        s.sports2d_do_ik = self.s2d_ik.isChecked()
+        s.sports2d_person_mass_kg = round(self.s2d_mass.value(), 1)
+        s.sports2d_opensim = self.s2d_ik.isChecked()
+        s.sports2d_simple_model = self.s2d_simple.isChecked()
         new_theme = self.theme.currentData()
         theme_changed = new_theme != s.ui_theme
         s.ui_theme = new_theme

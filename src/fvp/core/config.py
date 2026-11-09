@@ -42,8 +42,10 @@ class Settings:
     # Sports2D e Pose2Sim originali (D. Pagnon), eseguiti in un ambiente Python separato
     sports2d_python: str = ""          # vuoto = <home>/sports2d-env
     sports2d_timeout_s: int = 7200
-    sports2d_person_height_m: float = 0.0   # >0: conversione pixel -> metri di Sports2D con questa statura
-    sports2d_do_ik: bool = False       # cinematica inversa OpenSim tramite Pose2Sim (richiede statura)
+    sports2d_person_height_m: float = 0.0   # statura documentata (m); 0 = non nota
+    sports2d_person_mass_kg: float = 0.0     # massa documentata (kg); 0 = non nota (influisce solo sulle forze)
+    sports2d_opensim: bool = True      # modello OpenSim scalato (.osim) e cinematica inversa (.mot) via Pose2Sim
+    sports2d_simple_model: bool = False  # modello OpenSim semplificato: IK 10 volte più rapida, senza muscoli
     hash_algorithms: list[str] = field(default_factory=lambda: ["md5", "sha1", "sha256", "sha512", "sha3_256", "blake2b"])
 
     @property

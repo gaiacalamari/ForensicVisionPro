@@ -129,3 +129,16 @@ calibrate e non si applica a un video singolo.
 
 La pagina **Tutti i dati rinvenuti** riporta ogni dato estratto dall'ultima analisi del reperto, anche quando non ci
 sono anomalie, con le anomalie in cima.
+
+### Modello OpenSim (.osim)
+
+Con Sports2D installato, l'analisi crea anche un modello muscoloscheletrico OpenSim scalato sulla persona (`.osim`)
+e il suo movimento (`*_ik.mot`), calcolati da Pose2Sim con la cinematica inversa. Per vederli serve l'applicazione
+gratuita OpenSim 4.5+ (https://simtk.org/projects/opensim): *File > Open Model* sul `.osim`, poi *File > Load Motion*
+sul `*_ik.mot` e *Play*. Il pulsante *Apri il modello in OpenSim* (scheda Sports2D / Pose2Sim originali) apre il
+modello con OpenSim se è installato; le stesse istruzioni sono in `LEGGIMI_OpenSim.txt` accanto ai file.
+
+Indicare in Impostazioni la statura (e, se serve, la massa) solo se documentate. Senza statura il modello usa 1,70 m:
+dimensioni e spostamenti in metri sono allora in scala arbitraria e i risultati lo dichiarano; gli angoli articolari
+non dipendono dalla statura. Da un solo video la profondità è stimata: le rotazioni fuori dal piano della ripresa e il
+lato non visibile sono poco affidabili.

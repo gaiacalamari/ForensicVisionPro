@@ -6,8 +6,9 @@ strumenti usati in biomeccanica:
 
 - Sports2D (https://github.com/davidpagnon/Sports2D): posa 2D con RTMLib, video annotato, angoli (.mot),
   traiettorie (.trc), conversione pixel -> metri;
-- Pose2Sim (https://github.com/perfanalytics/pose2sim), dipendenza di Sports2D: filtri, conversione in metri e, a
-  richiesta, scalatura e cinematica inversa con OpenSim.
+- Pose2Sim (https://github.com/perfanalytics/pose2sim), dipendenza di Sports2D: filtri, conversione in metri,
+  scalatura di un modello muscoloscheletrico OpenSim (.osim) e cinematica inversa (.mot), da aprire con OpenSim
+  (https://simtk.org/projects/opensim) per vedere il modello 3D che ripete il movimento del video.
 
 I due programmi girano in un ambiente Python separato (vedi tools/install_sports2d.py): hanno dipendenze proprie
 (PyQt, OpenSim, OpenVINO) incompatibili con l'eseguibile e non modificano l'ambiente di Forensic Vision Pro.
@@ -41,6 +42,21 @@ MODULE = "sports2d"
 METHOD = "Sports2D / Pose2Sim originali (D. Pagnon), ambiente Python separato"
 PACKAGES = ("sports2d", "pose2sim", "rtmlib", "onnxruntime", "openvino", "opencv-python", "opensim", "numpy")
 VIDEO_EXT = (".mp4", ".avi", ".mov", ".mkv")
+DEFAULT_HEIGHT_M = 1.70        # Sports2D: default_height; usata solo se la statura non è documentata
+
+OPENSIM_README = """Modello OpenSim prodotto da Sports2D/Pose2Sim (Forensic Vision Pro)
+
+Come vederlo:
+1. Installare OpenSim (gratuito): https://simtk.org/projects/opensim  (versione 4.5 o successiva)
+2. OpenSim > File > Open Model...      scegliere il file .osim (modello scalato sulla persona)
+3. OpenSim > File > Load Motion...     scegliere il file *_ik.mot della stessa persona
+4. Premere Play nella barra in basso: il modello ripete il movimento del video.
+
+Il file *_m_*.trc (marcatori in metri) si può sovrapporre con File > Preview Experimental Data.
+
+{height_note}
+Gli SHA-256 di tutti i file sono registrati nell'analisi del caso (Forensic Vision Pro, pagina Persone e movimento).
+"""
 
 
 class Sports2DUnavailable(RuntimeError):
@@ -99,7 +115,8 @@ def status(settings=None) -> dict:
     if not v.get("sports2d"):
         return {"ok": False, "python": str(py), "versions": v, "detail": "Sports2D non installato nell'ambiente"}
     return {"ok": True, "python": str(py), "versions": v,
-            "detail": f"Sports2D {v['sports2d']} · Pose2Sim {v.get('pose2sim') or '—'}"}
+            "detail": f"Sports2D {v['sports2d']} · Pose2Sim {v.get('pose2sim') or '—'} · "
+                      f"OpenSim {v.get('opensim') or 'non installato (niente modello .osim)'}"}
 
 
 def _sha256(p: Path) -> str:
@@ -114,19 +131,35 @@ def _entry(p: Path, base: Path) -> dict:
     return {"path": str(p), "rel": p.relative_to(base).as_posix(), "sha256": _sha256(p), "size": p.stat().st_size}
 
 
-def build_command(py: Path, video: Path, result_dir: Path, settings=None) -> list[str]:
-    """Riga di comando di Sports2D: nessuna finestra interattiva, tutte le persone, nessuna statura presunta."""
+def height_for(settings=None) -> tuple[float, bool]:
+    """(statura in metri, True se presunta). Serve a Sports2D per la conversione pixel -> metri e quindi al modello
+    OpenSim: senza statura documentata si usa quella predefinita di Sports2D, dichiarandolo nei risultati."""
     h = float(getattr(settings, "sports2d_person_height_m", 0.0) or 0.0)
+    return (h, False) if h > 0 else (DEFAULT_HEIGHT_M, True)
+
+
+def build_command(py: Path, video: Path, result_dir: Path, settings=None) -> list[str]:
+    """Riga di comando di Sports2D: nessuna finestra interattiva, tutte le persone. Con OpenSim attivo (predefinito)
+    converte in metri e chiede a Pose2Sim scalatura e cinematica inversa; altrimenti resta in pixel salvo statura
+    documentata."""
+    h, _assumed = height_for(settings)
+    opensim = bool(getattr(settings, "sports2d_opensim", True)) if settings is not None else True
+    documented = float(getattr(settings, "sports2d_person_height_m", 0.0) or 0.0) > 0
     cmd = [str(py), "-m", "Sports2D.Sports2D",
            "--video_dir", str(video.parent), "--video_input", video.name, "--result_dir", str(result_dir),
            "--nb_persons_to_detect", "all", "--person_ordering_method", "highest_likelihood",
            "--show_realtime_results", "false", "--show_graphs", "false",
            "--save_vid", "true", "--save_img", "false", "--save_pose", "true",
            "--calculate_angles", "true", "--save_angles", "true", "--mode", "balanced"]
-    if h > 0:
-        cmd += ["--to_meters", "true", "--first_person_height", f"{h:g}"]
-        if getattr(settings, "sports2d_do_ik", False):
-            cmd += ["--do_ik", "true"]
+    if opensim:
+        cmd += ["--to_meters", "true", "--first_person_height", f"{h:g}", "--default_height", f"{h:g}",
+                "--do_ik", "true", "--do_augmentation", "false",
+                "--use_simple_model", "true" if getattr(settings, "sports2d_simple_model", False) else "false"]
+        m = float(getattr(settings, "sports2d_person_mass_kg", 0.0) or 0.0)
+        if m > 0:
+            cmd += ["--participant_mass", f"{m:g}"]
+    elif documented:
+        cmd += ["--to_meters", "true", "--first_person_height", f"{h:g}", "--do_ik", "false"]
     else:
         cmd += ["--to_meters", "false", "--do_ik", "false"]
     return cmd
@@ -210,10 +243,26 @@ def run(working_copy: str | Path, out_dir: Path, settings=None, progress: Progre
     mots = [e for e in outputs.values() if e["rel"].lower().endswith(".mot")]
     trcs = [e for e in outputs.values() if e["rel"].lower().endswith(".trc")]
     pngs = [e for e in outputs.values() if e["rel"].lower().endswith(".png")]
+    osims = [e for e in outputs.values() if e["rel"].lower().endswith(".osim")]
+    iks = [e for e in mots if e["rel"].lower().endswith("_ik.mot")]
+    mots = [e for e in mots if e not in iks]
+    want_osim = "--do_ik" in cmd and cmd[cmd.index("--do_ik") + 1] == "true"
+    h, assumed = height_for(settings)
+    if osims:      # istruzioni accanto ai file, per chi riceve la cartella
+        note = (f"ATTENZIONE: statura non documentata, usata quella predefinita di {h:g} m. Le dimensioni del modello e "
+                "gli spostamenti in metri sono in scala arbitraria; gli angoli articolari non dipendono dalla statura."
+                if assumed else f"Statura documentata indicata dall'operatore: {h:g} m.")
+        rd = Path(osims[0]["path"]).parent / "LEGGIMI_OpenSim.txt"
+        rd.write_text(OPENSIM_README.format(height_note=note), encoding="utf-8")
+        e = _entry(rd, out_dir)
+        outputs[e["rel"]] = e
     res = {"python": str(py), "versions": ver, "command": cmd, "returncode": proc.returncode, "duration_s": dur,
            "input": {"path": str(video), "sha256": in_hash}, "outputs": outputs, "log": log_e,
            "video": vids[0]["path"] if vids else "", "mot": [e["path"] for e in mots],
-           "trc": [e["path"] for e in trcs], "models_cache": _rtmlib_models(), "artifacts": {}}
+           "trc": [e["path"] for e in trcs], "models_cache": _rtmlib_models(), "artifacts": {},
+           "opensim": {"requested": want_osim, "model": [e["path"] for e in osims], "motion": [e["path"] for e in iks],
+                       "height_m": h if (want_osim or not assumed) else None, "height_assumed": assumed and want_osim,
+                       "opensim_version": ver.get("opensim", "")}}
     if pngs:
         res["artifacts"]["sports2d_angles"] = pngs[0]["path"]
     after = _sha256(video)
@@ -241,10 +290,37 @@ def run(working_copy: str | Path, out_dir: Path, settings=None, progress: Progre
             confidence="n/a",
             limitations="RTMLib scarica i modelli senza un'impronta fissata: gli SHA-256 dei modelli in cache sono "
                         "registrati nei risultati. L'ordine e la numerazione delle persone possono differire da "
-                        "quelli di Forensic Vision Pro." + ("" if float(getattr(settings, "sports2d_person_height_m", 0)
-                                                                 or 0) > 0 else
-                                                          " Nessuna conversione in metri: statura non indicata."),
+                        "quelli di Forensic Vision Pro." + (
+                            f" Statura documentata: {h:g} m." if not assumed else
+                            f" Statura non documentata: per il modello OpenSim è usata quella predefinita ({h:g} m)."
+                            if want_osim else " Nessuna conversione in metri: statura non indicata."),
             data={"outputs": {k: v["sha256"] for k, v in outputs.items()}}))
+    if want_osim and proc.returncode == 0:
+        if osims and iks:
+            findings.append(Finding(
+                Category.HUMAN_POSE, Level.INFO,
+                f"Modello OpenSim creato: {len(osims)} modello scalato (.osim), {len(iks)} movimento (.mot)",
+                "Pose2Sim ha scalato un modello muscoloscheletrico OpenSim sulle proporzioni della persona e calcolato "
+                "la cinematica inversa: aprendo il .osim e poi il *_ik.mot con OpenSim il modello 3D ripete il "
+                "movimento del video (istruzioni in LEGGIMI_OpenSim.txt).", "Pose2Sim: scaling + inverse kinematics "
+                f"OpenSim {ver.get('opensim') or ''}".strip(), MODULE,
+                evidence="\n".join(f"{Path(e['path']).name}  SHA-256 {e['sha256']}" for e in osims + iks),
+                confidence="n/a",
+                limitations=("Statura non documentata: usata quella predefinita di Sports2D "
+                             f"({h:g} m), quindi dimensioni e spostamenti in metri sono in scala arbitraria; gli angoli "
+                             "articolari non ne dipendono. " if assumed else f"Statura documentata: {h:g} m. ")
+                            + "Da un solo video la profondità è stimata (modello 2D proiettato): rotazioni fuori dal "
+                              "piano della ripresa e lato non visibile sono poco affidabili. Non è una misura "
+                              "antropometrica.",
+                data={"model": [e["sha256"] for e in osims], "motion": [e["sha256"] for e in iks]}))
+        else:
+            findings.append(Finding(
+                Category.HUMAN_POSE, Level.UNDETERMINED, "Modello OpenSim non prodotto",
+                "Sports2D è terminato ma Pose2Sim non ha prodotto il modello .osim o il movimento *_ik.mot. Cause "
+                "frequenti: OpenSim non installato nell'ambiente, persona non visibile per intero, meno di 4 frame "
+                "validi, lato visibile non determinabile.", METHOD, MODULE, evidence=tail[-1500:],
+                limitations="Il registro completo è sports2d.log negli artifacts."
+                            + ("" if ver.get("opensim") else " Il pacchetto 'opensim' non risulta installato.")))
     progress(1.0, "Sports2D completato")
     return res, findings
 

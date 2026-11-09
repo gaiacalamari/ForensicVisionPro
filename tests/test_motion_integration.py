@@ -64,9 +64,10 @@ def main():
     ap = argparse.ArgumentParser()
     for a in ("video_dir", "result_dir", "nb_persons_to_detect", "person_ordering_method", "show_realtime_results",
               "show_graphs", "save_vid", "save_img", "save_pose", "calculate_angles", "save_angles", "mode",
-              "to_meters", "do_ik", "first_person_height"):
+              "to_meters", "do_ik", "first_person_height", "default_height", "do_augmentation", "use_simple_model"):
         ap.add_argument("--" + a)
     ap.add_argument("--video_input", nargs="*")
+    ap.add_argument("--participant_mass", nargs="*")
     a = ap.parse_args()
     assert a.show_realtime_results == "false" and a.show_graphs == "false"
     src = Path(a.video_dir) / a.video_input[0]
@@ -76,6 +77,12 @@ def main():
     (out / (src.stem + "_Sports2D_angles_person00.mot")).write_text(
         "x\\nversion=1\\nendheader\\ntime\\tright_knee\\n0.0\\t170\\n0.04\\t165\\n")
     (out / (src.stem + "_Sports2D_px_person00.trc")).write_text("PathFileType\\t4\\n")
+    if a.do_ik == "true":          # come Sports2D: modello scalato e movimento IK nella cartella dei risultati
+        assert a.to_meters == "true" and float(a.first_person_height) > 0
+        (out / (src.stem + "_Sports2D_m_person00_scaled.osim")).write_text("<OpenSimDocument/>")
+        (out / (src.stem + "_Sports2D_m_person00_ik.mot")).write_text(
+            "Coordinates\\nversion=1\\ninDegrees=yes\\nendheader\\ntime\\tknee_angle_r\\tpelvis_tx\\n"
+            "0.0\\t-5.0\\t0.1\\n0.04\\t-12.0\\t0.12\\n")
     print("Sports2D finto: argomenti", sys.argv[1:])
     import os, stat
     print("input in sola lettura:", "ok" if not os.stat(src).st_mode & stat.S_IWRITE else "NO")
@@ -98,7 +105,7 @@ def fake_env(tmp_path_factory):
     (site / "Sports2D").mkdir(parents=True, exist_ok=True)
     (site / "Sports2D" / "__init__.py").write_text("")
     (site / "Sports2D" / "Sports2D.py").write_text(textwrap.dedent(FAKE_S2D))
-    for name, ver in (("sports2d", "0.8.34"), ("pose2sim", "0.10.49")):
+    for name, ver in (("sports2d", "0.8.34"), ("pose2sim", "0.10.49"), ("opensim", "4.6")):
         di = site / f"{name}-{ver}.dist-info"
         di.mkdir(exist_ok=True)
         (di / "METADATA").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: {ver}\n")
@@ -108,19 +115,30 @@ def fake_env(tmp_path_factory):
 class Cfg:
     sports2d_timeout_s = 120
     sports2d_person_height_m = 0.0
-    sports2d_do_ik = False
+    sports2d_person_mass_kg = 0.0
+    sports2d_opensim = False
+    sports2d_simple_model = False
 
     def __init__(self, py):
         self.sports2d_python = str(py)
 
 
-def test_sports2d_command_never_assumes_height(tmp_path):
-    cmd = S.build_command(Path("py"), tmp_path / "reperto.mp4", tmp_path / "r", Cfg("py"))
-    assert cmd[cmd.index("--to_meters") + 1] == "false" and "--first_person_height" not in cmd
+def test_sports2d_command(tmp_path):
+    arg = lambda c, k: c[c.index(k) + 1]  # noqa: E731
+    cmd = S.build_command(Path("py"), tmp_path / "reperto.mp4", tmp_path / "r", Cfg("py"))   # OpenSim disattivato
+    assert arg(cmd, "--to_meters") == "false" and "--first_person_height" not in cmd
     c = Cfg("py")
-    c.sports2d_person_height_m, c.sports2d_do_ik = 1.72, True
+    c.sports2d_opensim = True                                   # predefinito: modello OpenSim, statura presunta
     cmd = S.build_command(Path("py"), tmp_path / "reperto.mp4", tmp_path / "r", c)
-    assert cmd[cmd.index("--first_person_height") + 1] == "1.72" and cmd[cmd.index("--do_ik") + 1] == "true"
+    assert arg(cmd, "--do_ik") == "true" and arg(cmd, "--to_meters") == "true"
+    assert arg(cmd, "--first_person_height") == "1.7" and "--participant_mass" not in cmd
+    assert S.height_for(c) == (1.7, True)
+    c.sports2d_person_height_m, c.sports2d_person_mass_kg, c.sports2d_simple_model = 1.82, 80, True
+    cmd = S.build_command(Path("py"), tmp_path / "reperto.mp4", tmp_path / "r", c)
+    assert arg(cmd, "--first_person_height") == "1.82" and arg(cmd, "--participant_mass") == "80"
+    assert arg(cmd, "--use_simple_model") == "true" and S.height_for(c) == (1.82, False)
+    from fvp.core.config import Settings
+    assert Settings().sports2d_opensim                          # l'utente vuole il .osim di default
 
 
 def test_sports2d_status_and_run(fake_env, tmp_path):
@@ -141,6 +159,24 @@ def test_sports2d_status_and_run(fake_env, tmp_path):
     assert list(cols["right knee"]) == [170.0, 165.0]
 
 
+def test_sports2d_opensim_model(fake_env, tmp_path):
+    c = Cfg(fake_env)
+    c.sports2d_opensim = True
+    v = make_video(tmp_path / "clip.avi", n=10)
+    res, fs = S.run(v, tmp_path / "out", c)
+    osm = res["opensim"]
+    assert osm["requested"] and osm["height_assumed"] and osm["height_m"] == 1.7 and osm["opensim_version"] == "4.6"
+    assert len(osm["model"]) == 1 and osm["model"][0].endswith(".osim") and osm["motion"][0].endswith("_ik.mot")
+    assert osm["motion"][0] not in res["mot"]                  # gli angoli Sports2D restano separati dall'IK
+    readme = Path(osm["model"][0]).parent / "LEGGIMI_OpenSim.txt"
+    assert "Load Motion" in readme.read_text(encoding="utf-8") and "presunta" not in res["command"]
+    assert any(e["rel"].endswith("LEGGIMI_OpenSim.txt") for e in res["outputs"].values())
+    f = next(x for x in fs if x.title.startswith("Modello OpenSim creato"))
+    assert f.level == Level.INFO and "non documentata" in f.limitations and ".osim" in f.evidence
+    t, cols = P.read_mot(osm["motion"][0])
+    assert list(cols["knee angle r"]) == [-5.0, -12.0]
+
+
 def test_sports2d_tampering_is_reported(fake_env, tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_S2D_TAMPER", "1")
     v = make_video(tmp_path / "clip.avi", n=5)
@@ -159,13 +195,15 @@ def test_pipeline_sports2d(case, tmp_path, fake_env, monkeypatch):
     from fvp.core.pipeline import analyze_exhibit
     monkeypatch.setattr(M, "load", lambda *a, **k: FakeEstimator())
     ex = case.acquire(make_video(tmp_path / "cut.avi", n=50, cut=25), "tester")
-    s = Settings(sports2d_python=str(fake_env))
+    s = Settings(sports2d_python=str(fake_env))           # OpenSim attivo di default
     aid = analyze_exhibit(case, ex.id, "tester", s, ["integrity", "signature", "pose", "sports2d"])
     an = next(a for a in case.analyses(ex.id) if a["id"] == aid)
     r = an["results"]
     assert "sports2d" in r["executed"] and r["sports2d"]["returncode"] == 0
     assert an["tools"]["sports2d_env_sports2d"] == "0.8.34" and an["integrity_ok"]
     assert "pose_video" in r["artifacts"]
+    assert r["sports2d"]["opensim"]["model"] and any(x.title.startswith("Modello OpenSim creato")
+                                                     for x in an["findings"])
 
 
 def test_pipeline_sports2d_missing_is_informative(case, tmp_path, monkeypatch):
@@ -259,3 +297,25 @@ def test_all_data_page_shows_everything(ui, tmp_path, monkeypatch):
     visible = [pg.tree.topLevelItem(i).text(0) for i in range(pg.tree.topLevelItemCount())
                if not pg.tree.topLevelItem(i).isHidden()]
     assert "Persone e movimento (Forensic Vision Pro)" in visible and "Integrità e acquisizione" not in visible
+
+
+def test_pose_page_opensim_source_and_button(ui, tmp_path, monkeypatch, fake_env):
+    from fvp.core.pipeline import analyze_exhibit
+    app, st, w = ui
+    monkeypatch.setattr(M, "load", lambda *a, **k: FakeEstimator())
+    cp = w.pages["Case Management"]
+    cp.cid.setText("OSIM-1")
+    cp.ctitle.setText("opensim")
+    cp._create()
+    st.settings.sports2d_python = str(fake_env)
+    ex = st.case.acquire(make_video(tmp_path / "v.avi", n=30), "tester")
+    analyze_exhibit(st.case, ex.id, "tester", st.settings, ["integrity", "signature", "pose", "sports2d"])
+    st.set_exhibit(ex.id)
+    st.analysis_changed.emit()
+    pp = w.pages["Human Pose"]
+    pp.refresh()
+    assert [pp.src.itemData(i) for i in range(pp.src.count())] == ["fvp", "sports2d", "opensim"]
+    assert pp.osim_open.isEnabled() and "Modello OpenSim pronto" in pp.osim_info.text()
+    assert "presunta" in pp.osim_info.text()
+    pp.src.setCurrentIndex(2)
+    assert "knee angle r" in pp.chart.visible and pp.player.count > 0

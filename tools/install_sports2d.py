@@ -8,7 +8,9 @@ Forensic Vision Pro cerca l'ambiente in <home>/sports2d-env (la stessa cartella 
 con la versione portable è data\\sports2d-env accanto all'eseguibile) oppure nel percorso indicato in Impostazioni.
 L'elenco esatto dei pacchetti installati è salvato in <ambiente>/pip-freeze.txt per la documentazione.
 Alla prima analisi RTMLib scarica i modelli di stima della posa da OpenMMLab; i loro SHA-256 vengono registrati
-nei risultati di ogni analisi.
+nei risultati di ogni analisi. Pose2Sim installa anche il pacchetto Python di OpenSim, che produce il modello
+scalato (.osim) e la cinematica inversa (.mot); per visualizzarli serve l'applicazione OpenSim
+(https://simtk.org/projects/opensim).
 """
 from __future__ import annotations
 
@@ -55,6 +57,14 @@ def main() -> int:
                                         "print('Sports2D', m.version('sports2d'), '- Pose2Sim', m.version('pose2sim'))"],
                          capture_output=True, text=True)
     print("\n" + (chk.stdout.strip() or chk.stderr.strip()))
+    osim = subprocess.run([str(py), "-c", "import opensim; print(opensim.GetVersion())"], capture_output=True,
+                          text=True)
+    if osim.returncode == 0:
+        print(f"OpenSim {osim.stdout.strip()}: modello .osim e cinematica inversa disponibili")
+    else:
+        print("ATTENZIONE: il pacchetto opensim non si importa, quindi niente modello .osim.\n"
+              + (osim.stderr.strip().splitlines() or [""])[-1]
+              + f"\nProvare: {py} -m pip install --force-reinstall opensim")
     print(f"Ambiente pronto: {tgt}")
     if tgt != default_target().resolve():
         print(f"Indicare questo interprete in Impostazioni > Sports2D: {py}")
