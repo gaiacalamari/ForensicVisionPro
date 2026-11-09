@@ -7,8 +7,13 @@
 - bin/tools.lock.json registra URL, hash, dimensione, data e output di verifica di ogni strumento,
   per documentare nei report quali binari sono stati usati.
 - Uno strumento già presente con lo stesso hash non viene riscaricato (usare --force per farlo).
+- Le voci con "optional": true (es. i modelli della stima della posa) non bloccano la build: un errore o un'impronta
+  non ancora fissata produce solo un avviso.
+- --pin NOME fissa l'impronta di una voce: scarica il file da tutte le sorgenti elencate e scrive lo SHA-256 in
+  tools.json solo se tutte restituiscono lo stesso file (con --allow-single basta una sorgente).
 
-Uso:  python tools/fetch_tools.py [--force] [--only nome] [--bin cartella]
+Uso:  python tools/fetch_tools.py [--force] [--only nome|gruppo] [--bin cartella]
+      python tools/fetch_tools.py --pin nome|gruppo [--allow-single]
 Solo libreria standard: funziona prima che le dipendenze siano installate.
 """
 from __future__ import annotations
@@ -140,10 +145,14 @@ def fetch(bin_dir: Path, force: bool = False, only: str | None = None, log=print
     errors = []
     for tool in manifest.get("tools", []):
         name = tool["name"]
-        if only and name != only:
+        if only and only not in (name, tool.get("group")):
             continue
         if not _platform_ok(tool.get("platform", "any")):
             log(f"- {name}: non previsto per {sys.platform}, si userà quello di sistema (PATH)")
+            continue
+        if tool.get("optional") and not (tool.get("sha256") or tool.get("sha256_url")):
+            log(f"- {name}: facoltativo, impronta non ancora fissata: eseguire "
+                f"'python tools/fetch_tools.py --pin {tool.get('group') or name}' e verificare il valore")
             continue
         try:
             expected = _expected_hash(tool)
@@ -181,6 +190,9 @@ def fetch(bin_dir: Path, force: bool = False, only: str | None = None, log=print
             lock_path.write_text(json.dumps(lock, indent=2, ensure_ascii=False), encoding="utf-8")
             log(f"  installato in {bin_dir}: {', '.join(files)} — {out}")
         except (FetchError, OSError, zipfile.BadZipFile, ValueError) as e:
+            if tool.get("optional"):
+                log(f"  AVVISO {name} (facoltativo, non installato): {e}")
+                continue
             errors.append(f"{name}: {e}")
             log(f"  ERRORE {name}: {e}")
     if errors:
@@ -188,13 +200,55 @@ def fetch(bin_dir: Path, force: bool = False, only: str | None = None, log=print
     return lock
 
 
+def pin(bin_dir: Path, target: str, allow_single: bool = False, log=print) -> dict[str, str]:
+    """Calcola lo SHA-256 da tutte le sorgenti di una voce (o di un gruppo) e lo scrive in tools.json."""
+    path = bin_dir / "tools.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    pinned: dict[str, str] = {}
+    sel = [t for t in manifest.get("tools", []) if target in (t["name"], t.get("group"))]
+    if not sel:
+        raise FetchError(f"nessuna voce '{target}' in {path}")
+    for tool in sel:
+        hashes: dict[str, str] = {}
+        with tempfile.TemporaryDirectory() as td:
+            for i, url in enumerate(tool["urls"]):
+                arc = Path(td) / f"src{i}"
+                try:
+                    log(f"- {tool['name']}: download da {url}")
+                    _get(url, arc, timeout=600)
+                    hashes[url] = _sha256(arc)
+                    zipfile.ZipFile(arc).close()          # deve essere un archivio valido
+                    log(f"  SHA-256 {hashes[url]}")
+                except (OSError, zipfile.BadZipFile) as e:
+                    log(f"  non riuscito: {e}")
+                    hashes.pop(url, None)
+        if not hashes:
+            raise FetchError(f"{tool['name']}: nessuna sorgente raggiungibile")
+        if len(set(hashes.values())) != 1:
+            raise FetchError(f"{tool['name']}: le sorgenti restituiscono file diversi: {hashes}")
+        if len(hashes) < len(tool["urls"]) and not allow_single:
+            raise FetchError(f"{tool['name']}: solo {len(hashes)} sorgenti su {len(tool['urls'])} raggiungibili; "
+                             "impronta non confermata (usare --allow-single per accettarla)")
+        tool["sha256"] = next(iter(hashes.values()))
+        tool["pinned_from"] = sorted(hashes)
+        pinned[tool["name"]] = tool["sha256"]
+    path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    log(f"Impronte scritte in {path}: verificare il diff prima del commit.")
+    return pinned
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--bin", default=str(ROOT / "bin"))
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--only")
+    ap.add_argument("--pin", metavar="NOME")
+    ap.add_argument("--allow-single", action="store_true")
     a = ap.parse_args()
     try:
+        if a.pin:
+            pin(Path(a.bin), a.pin, a.allow_single)
+            return 0
         fetch(Path(a.bin), a.force, a.only)
     except FetchError as e:
         print(f"\nStrumenti non installati: {e}", file=sys.stderr)

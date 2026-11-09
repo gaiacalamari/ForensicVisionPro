@@ -17,10 +17,11 @@
 | Sensore | PRNU con archivio delle impronte e PCE |
 | Confronto | SSIM, PSNR, differenze, allineamento con omografia, hash percettivi, quasi-duplicati nel caso |
 | Video | FFprobe, coerenza stream, encoder, atom |
+| Persone e movimento | Stima della posa (YOLOX + RTMPose HALPE-26, ONNX Runtime), angoli e filtri come Sports2D, esportazioni CSV/TRC/MOT, discontinuità di scena e isolate, sostituzione delle persone, cadenza, posture insolite. Modelli facoltativi da installare con `fetch_tools.py --pin`/`--only pose-models` |
 | Report | HTML 1.1 con sintesi in linguaggio naturale, punti di attenzione collegati ai dettagli e glossario; JSON completo; CSV con spiegazioni |
 | Sistema | Self-check all'avvio e in build, download verificato degli strumenti, build Windows autonoma |
 
-Test automatici: 63 (unità, integrazione su un dataset di 34 file a verità nota, interfaccia).
+Test automatici: 93 (unità, integrazione su un dataset di 34 file a verità nota, video sintetici con tagli noti, micro-modelli ONNX, interfaccia).
 
 ## Non incluso nella 1.0
 
@@ -31,6 +32,8 @@ Questi elementi sono indicati come tali anche nell'interfaccia:
 - validazione crittografica dei manifest C2PA;
 - estrazione di contenuti cifrati o protetti da password e rilevamento di Steghide, F5 e OutGuess;
 - lettura automatica (OCR) del testo nelle immagini: le scritte quasi invisibili sono evidenziate ma non trascritte;
-- report PDF (il report HTML si stampa in PDF dal browser).
+- report PDF (il report HTML si stampa in PDF dal browser);
+- per la posa: calibrazione della camera e misure in metri (statura, distanze), analisi 3D, confronto biometrico
+  dell'andatura tra soggetti.
 
 Scelte deliberate: nessun punteggio unico di manipolazione in percentuale. Inoltre Steghide non viene incluso, perché è fermo dal 2003, ha vulnerabilità note e non va eseguito su reperti non attendibili.

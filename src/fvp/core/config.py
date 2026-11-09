@@ -32,6 +32,13 @@ class Settings:
     max_image_pixels: int = 250_000_000
     ui_mode: str = "Advanced"          # Basic | Advanced | Expert
     ui_theme: str = "light"            # light | dark
+    # Persone e movimento (stima della posa, metodologia Sports2D)
+    pose_det_model: str = ""           # vuoto = bin/ o <home>/models
+    pose_model: str = ""
+    pose_max_frames: int = 3600        # frame analizzati al massimo per video
+    pose_frame_step: int = 1           # 1 = ogni frame (necessario per le discontinuità tra frame)
+    pose_det_every: int = 4            # rilevamento delle persone ogni N frame (Sports2D: det_frequency)
+    pose_save_video: bool = False      # video con lo scheletro sovrapposto negli artifacts
     hash_algorithms: list[str] = field(default_factory=lambda: ["md5", "sha1", "sha256", "sha512", "sha3_256", "blake2b"])
 
     @property

@@ -23,11 +23,15 @@ MODS = [("signature", "Formato reale del file"), ("structure", "Struttura intern
         ("stegointel", "Estrazione di contenuti nascosti (StegoIntelligence)"),
         ("hidden_text", "Testo nascosto: metadati, byte del file, scritte quasi invisibili"),
         ("quality", "Caratteristiche, volti, hash percettivi"), ("prnu", "Confronto con fotocamere note (PRNU)"),
-        ("video", "Video e audio (FFprobe)"), ("carving_scan", "File incorporati nel file")]
+        ("video", "Video e audio (FFprobe)"),
+        ("pose", "Persone e movimento: posa, angoli, discontinuità (Sports2D)"),
+        ("carving_scan", "File incorporati nel file")]
 PRESETS = {
-    "Completa (consigliata)": [k for k, _ in MODS],
+    # La stima della posa richiede molto calcolo sui video: si attiva con il suo profilo o a mano
+    "Completa (consigliata)": [k for k, _ in MODS if k != "pose"],
     "Rapida: struttura, metadati, date, ELA": ["signature", "structure", "metadata", "timestamps", "device", "image",
                                                "carving_scan"],
+    "Persone e movimento (video)": ["signature", "structure", "metadata", "timestamps", "video", "pose"],
     "Contenuti nascosti": ["signature", "structure", "metadata", "stego", "stegointel", "hidden_text", "carving_scan"],
     "Personalizzata": None,
 }
@@ -87,7 +91,7 @@ class LoadPage(Page):
         self.checks = {}
         for i, (k, lbl) in enumerate(MODS):
             c = QCheckBox(lbl)
-            c.setChecked(True)
+            c.setChecked(k in PRESETS["Completa (consigliata)"])
             c.toggled.connect(lambda _on: self._custom())
             self.checks[k] = c
             grid.addWidget(c, i // 3, i % 3)

@@ -66,6 +66,19 @@ Verde: i test eseguiti non hanno rilevato anomalie. Giallo: elementi da approfon
   - *Esplora i bit (avanzato)*: test statistici per canale e ogni canale e bit come immagine, alla maniera di Stegsolve.
   - *Strumenti e tecniche*: cosa è coperto rispetto al catalogo StegoIntelligence.
 - **Fotocamera di origine**: crea un'impronta da almeno 5 immagini (meglio 20+) dello stesso dispositivo, alla stessa risoluzione e non ridimensionate; poi confronta il reperto. PCE oltre 60 indica compatibilità con il sensore, non un'attribuzione certa.
+- **Persone e movimento**: si attiva con il profilo *Persone e movimento (video)*, con la casella del modulo o con il
+  pulsante *Analizza persone e movimento* della pagina. Non fa parte del profilo *Completa* perché sui video richiede
+  molto calcolo (circa 3–10 frame al secondo su CPU; al massimo 3.600 frame per video, modificabile).
+  - *Risultati*: le discontinuità **di scena** sono punti in cui tutte le persone cambiano posizione, dimensione o
+    identità da un frame al successivo, confermati da un salto nei tempi o da un cambio dell'immagine: compatibili con
+    tagli, frame mancanti o inseriti, ma anche con cambi di inquadratura. Quelle **isolate** riguardano una sola persona
+    e di solito sono errori di riconoscimento.
+  - *Immagini*: scheletro sovrapposto, grafico della velocità tra frame con la soglia, coppie di fotogrammi prima e
+    dopo ogni discontinuità.
+  - *Persone*, *Angoli*: tracce, copertura, altezza in pixel, cadenza; angoli con le definizioni di Sports2D.
+  - *Esportazioni*: keypoint grezzi (CSV), traiettorie (TRC) e angoli (MOT) apribili in Sports2D, OpenSim, Blender o in
+    un foglio di calcolo, ciascuno con SHA-256.
+  - I keypoint sono in pixel: non sono misure in centimetri né stime di statura. La cadenza non identifica una persona.
 - **Confronta immagini**: confronta due reperti o un reperto con un file; "Trova quasi-duplicati" usa gli hash percettivi di tutto il caso.
 - **Metadati**: tutti i tag con attendibilità; ricerca, filtro ed esportazione.
 - **Date e orari**: tutti gli orari in ordine; giallo se il fuso non è dichiarato.
@@ -77,3 +90,18 @@ Verde: i test eseguiti non hanno rilevato anomalie. Giallo: elementi da approfon
 ## Modalità
 
 Basic nasconde i risultati solo informativi; Advanced ed Expert mostrano tutto.
+
+## Installare i modelli per Persone e movimento
+
+I modelli (circa 150 MB) non sono inclusi nei sorgenti. La prima volta, su un computer collegato a Internet:
+
+```bash
+python tools/fetch_tools.py --pin pose-models     # scarica da OpenMMLab e dal mirror Hugging Face, confronta
+                                                  # le impronte e le scrive in bin/tools.json
+python tools/fetch_tools.py --only pose-models    # installa i modelli in bin/ e li registra in tools.lock.json
+```
+
+Controllare e conservare il diff di `bin/tools.json` (le due impronte SHA-256): da quel momento ogni build scarica e
+accetta solo quei file. In Impostazioni → Stato del sistema la voce *Stima della posa* deve risultare OK. In
+alternativa i file `pose_det_yolox_m_humanart.onnx` e `pose_rtmpose_m_halpe26.onnx` possono essere copiati in
+`<cartella utente>/ForensicVisionPro/models` o indicati in `settings.json` (`pose_det_model`, `pose_model`).

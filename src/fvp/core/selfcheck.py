@@ -95,6 +95,25 @@ def _bundle_integrity() -> list[Check]:
     return out
 
 
+def _pose(settings: Settings) -> Check:
+    """Stima della posa (facoltativa): runtime, modelli verificati e un'inferenza reale su un frame vuoto."""
+    name = "Stima della posa (ONNX Runtime + modelli)"
+    try:
+        import numpy as np
+
+        from ..engines import pose_model
+        est = pose_model.load(settings.pose_det_model, settings.pose_model, threads=1)
+        frame = np.full((240, 320, 3), 127, np.uint8)
+        est.detect(frame)
+        k, s = est.keypoints(frame, np.array([[40, 20, 280, 220]], np.float32))
+        ok = k.shape == (1, 26, 2) and s.shape == (1, 26)
+        d = est.describe()
+        return Check(name, OPTIONAL, ok, "inferenza verificata" if ok else f"uscita inattesa {k.shape}",
+                     f"{d['runtime']} · {d['detector']['file']} · {d['pose']['file']}")
+    except Exception as e:  # noqa: BLE001 - modulo facoltativo
+        return Check(name, OPTIONAL, False, f"{type(e).__name__}: {e}")
+
+
 def _writable(name: str, path: Path) -> Check:
     try:
         path.mkdir(parents=True, exist_ok=True)
@@ -147,6 +166,7 @@ def run(settings: Settings | None = None) -> list[Check]:
     with tempfile.TemporaryDirectory() as td:
         checks += [_exiftool(settings, Path(td)), _ffprobe(settings, Path(td)), _heif(Path(td))]
     checks.append(_ffmpeg(settings))
+    checks.append(_pose(settings))
     checks += _bundle_integrity()
     checks += [_writable("Cartella dei casi", settings.cases_path), _writable("Archivio impronte PRNU", settings.prnu_path)]
     return checks

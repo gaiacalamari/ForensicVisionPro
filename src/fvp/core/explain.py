@@ -16,7 +16,7 @@ CATEGORY_LABELS = {
     Category.AI_GENERATION: "Intelligenza artificiale", Category.DEEPFAKE: "Deepfake",
     Category.VIDEO_INTEGRITY: "Video", Category.AUDIO_INTEGRITY: "Audio",
     Category.FILE_STRUCTURE: "Struttura del file", Category.STEGANOGRAPHY: "Contenuti nascosti",
-    Category.SENSOR: "Fotocamera di origine",
+    Category.SENSOR: "Fotocamera di origine", Category.HUMAN_POSE: "Persone e movimento",
 }
 CATEGORY_HELP = {
     Category.INTEGRITY: "Conferma che il file analizzato è identico a quello acquisito (hash invariati).",
@@ -31,6 +31,8 @@ CATEGORY_HELP = {
     Category.STEGANOGRAPHY: "Messaggi, file o testo nascosti dentro l'immagine o nei suoi dati.",
     Category.SENSOR: "Coerenza con il dispositivo dichiarato (modello, risoluzione, versione di sistema) e "
                      "confronto con l'impronta del sensore di fotocamere note (PRNU).",
+    Category.HUMAN_POSE: "Posa delle persone, angoli del corpo e continuità del loro movimento tra i frame "
+                         "(metodologia Sports2D).",
 }
 LEVEL_PLAIN = {
     Level.EVIDENCE: "Fatto accertato", Level.ANOMALY: "Anomalia", Level.SUSPICIOUS: "Da verificare",
@@ -141,6 +143,21 @@ RULES: list[tuple[str, str, str, str, str | None]] = [
      "Riproduci il file e controlla la sincronia.", "Video Forensics", None),
     (r"^Encoder dichiarato", "Il file dichiara il programma usato per codificarlo o impacchettarlo.",
      "Valuta se è coerente con la provenienza dichiarata.", "Video Forensics", None),
+    (r"^Discontinuità del movimento", "In alcuni punti del video le persone 'saltano' da una posizione all'altra, "
+     "cambiano dimensione o vengono sostituite da un frame al successivo, come se mancasse un pezzo di ripresa o ne "
+     "fosse stato inserito uno diverso.", "Apri la pagina Persone e movimento e guarda i fotogrammi prima e dopo "
+     "ciascun punto; confronta con l'analisi del contenitore e dei timestamp.", "Human Pose", "pose_jumps"),
+    (r"^Salti isolati di singole persone", "Una sola persona sembra spostarsi di colpo mentre il resto della scena "
+     "prosegue normalmente: quasi sempre è un errore del riconoscimento automatico (persona coperta, due persone "
+     "scambiate).", "Nessuna azione necessaria, salvo dubbi specifici su quel momento.", "Human Pose",
+     "pose_motion"),
+    (r"^Postura anatomicamente insolita", "Il programma ha misurato un ginocchio o un gomito piegato nel verso "
+     "sbagliato oltre il normale. Di solito è un errore di stima; nelle immagini generate o composte può indicare "
+     "una figura non realistica.", "Guarda lo scheletro sovrapposto nell'area indicata.", "Human Pose", "pose"),
+    (r"^Analisi della posa limitata", "Il video è più lungo del limite di analisi impostato: la parte finale non è "
+     "stata esaminata.", "Aumenta il limite in Impostazioni o analizza il video a segmenti.", "Settings", None),
+    (r"^Stima della posa non disponibile", "Il modulo che riconosce le persone non è installato su questo computer.",
+     "Installa i modelli con tools/fetch_tools.py (vedi manuale).", "Settings", None),
 ]
 
 

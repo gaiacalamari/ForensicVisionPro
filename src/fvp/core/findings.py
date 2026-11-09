@@ -44,6 +44,7 @@ class Category(str, Enum):
     FILE_STRUCTURE = "File Structure"
     STEGANOGRAPHY = "Steganography"
     SENSOR = "Sensor / Source"
+    HUMAN_POSE = "Human Pose / Kinematics"
 
 
 class Status(str, Enum):

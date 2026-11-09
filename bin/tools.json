@@ -38,6 +38,38 @@
         "ffprobe.exe",
         "-version"
       ]
+    },
+    {
+      "name": "pose-detector",
+      "group": "pose-models",
+      "optional": true,
+      "version": "YOLOX-m HumanArt (RTMPose v1, onnx_sdk c2c7a14a)",
+      "platform": "any",
+      "license": "Apache-2.0 (OpenMMLab MMPose)",
+      "urls": [
+        "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip",
+        "https://huggingface.co/Tau-J/RTMPose/resolve/main/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip"
+      ],
+      "sha256": "",
+      "extract": {
+        "*end2end.onnx": "pose_det_yolox_m_humanart.onnx"
+      }
+    },
+    {
+      "name": "pose-estimator",
+      "group": "pose-models",
+      "optional": true,
+      "version": "RTMPose-m Body7 HALPE-26 256x192 (4d3e73dd)",
+      "platform": "any",
+      "license": "Apache-2.0 (OpenMMLab MMPose)",
+      "urls": [
+        "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.zip",
+        "https://huggingface.co/Tau-J/RTMPose/resolve/main/rtmposev1/onnx_sdk/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.zip"
+      ],
+      "sha256": "",
+      "extract": {
+        "*end2end.onnx": "pose_rtmpose_m_halpe26.onnx"
+      }
     }
   ]
 }
