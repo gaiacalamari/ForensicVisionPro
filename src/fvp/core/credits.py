@@ -141,5 +141,9 @@ def credits_cli(argv: list[str]) -> int:
     if out:
         Path(out).write_text(txt, encoding="utf-8")
     elif sys.stdout is not None:                  # l'eseguibile senza console non ha stdout: usare un file
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
         sys.stdout.write(txt + "\n")
     return 0
