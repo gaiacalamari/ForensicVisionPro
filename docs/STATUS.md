@@ -1,4 +1,4 @@
-# Stato del progetto — versione 1.1.0
+# Stato del progetto — versione 1.4.0
 
 ## Incluso e verificato
 

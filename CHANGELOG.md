@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.3.0 (in corso)
+## 1.4.0 — 2026-11-09
+
+Analisi video: acquisizione di video e audio, persone e movimento con video annotato e grafici degli angoli,
+Sports2D e Pose2Sim originali con modello OpenSim, pagina con tutti i dati rinvenuti.
 
 - Sports2D/Pose2Sim: modello OpenSim scalato (.osim) e cinematica inversa (*_ik.mot) creati di default, con
   LEGGIMI_OpenSim.txt accanto ai file, pulsante "Apri il modello in OpenSim" e curve della cinematica inversa nel
@@ -21,20 +24,6 @@
 - Carica e analizza: video (MP4, MOV, 3GP, AVI, MKV, WebM, MPEG-PS/TS) e audio sono acquisiti con il filtro
   predefinito, che ora esclude solo i file non multimediali (sempre sui magic bytes). Selettore file con filtri
   Immagini/Video/Audio, colonna "Tipo" nell'elenco e suggerimento del profilo "Persone e movimento" per i video.
-- HEIC/HEIF: decodifica con pillow-heif; i file iPhone passano per tutte le analisi dei pixel (prima erano esclusi).
-- Nuovo parser HEIF: item, iloc, iref, proprietà, griglia di tile, miniature, Exif/XMP, immagini ausiliarie
-  (gain map HDR, matte del Ritratto), extent oltre la fine del file, byte non referenziati in mdat.
-- Corretto: i file HEIC ricevevano sempre "Atom 'moov' assente" come evidenza certa (controllo valido solo per i video).
-- Nuovo modulo "device": coerenza del file con il dispositivo dichiarato (nome, ora nel nome, campi del modello,
-  versione di iOS, data di uscita, risoluzione, dimensioni EXIF, MakerNotes, struttura HEIF).
-- Self-check: decodifica HEIC reale; la build si ferma se il decoder manca.
-- Modulo "device" esteso ai video iPhone (chiavi QuickTime com.apple.quicktime.*): modello, iOS, date, risoluzione.
-- Nuovo modulo "case_context": abbinamento Live Photo (ContentIdentifier) con verifica di numero, modello e orario;
-  più versioni dello stesso scatto; numerazione IMG_xxxx coerente con l'ordine delle date (con rollover 9999→0001
-  e riconoscimento dei cambi di fuso). Cache per SHA-256 nel caso.
-- Carica e analizza: acquisisce tutto il lotto prima di analizzarlo, così il confronto tra reperti non dipende
-  dall'ordine dei file.
-- Aggiunto .gitignore.
 - Nuovo modulo "pose" e pagina **Persone e movimento**, con la metodologia di Sports2D (D. Pagnon) reimplementata
   senza le sue dipendenze: stima della posa YOLOX + RTMPose HALPE-26 con ONNX Runtime (solo CPU, modelli locali
   verificati con SHA-256), tracciamento, angoli articolari e segmentali di Sports2D/Pose2Sim, Butterworth a fase zero,
@@ -56,6 +45,27 @@
 - fetch_tools.py: `extract_optional` per estrarre il testo di licenza di FFmpeg dall'archivio.
 - Note di copyright nei file con codice derivato (Pose2Sim BSD-3, rtmlib Apache-2.0 con elenco delle modifiche).
 - Test: ogni pacchetto di requirements.txt e ogni strumento di tools.json deve avere un credito documentato.
+
+## 1.3.0
+
+- Tag pubblicato sullo stesso codice della 1.2.0 (il programma riportava la versione 1.2.0).
+
+## 1.2.0
+
+- HEIC/HEIF: decodifica con pillow-heif; i file iPhone passano per tutte le analisi dei pixel (prima erano esclusi).
+- Nuovo parser HEIF: item, iloc, iref, proprietà, griglia di tile, miniature, Exif/XMP, immagini ausiliarie
+  (gain map HDR, matte del Ritratto), extent oltre la fine del file, byte non referenziati in mdat.
+- Corretto: i file HEIC ricevevano sempre "Atom 'moov' assente" come evidenza certa (controllo valido solo per i video).
+- Nuovo modulo "device": coerenza del file con il dispositivo dichiarato (nome, ora nel nome, campi del modello,
+  versione di iOS, data di uscita, risoluzione, dimensioni EXIF, MakerNotes, struttura HEIF).
+- Self-check: decodifica HEIC reale; la build si ferma se il decoder manca.
+- Modulo "device" esteso ai video iPhone (chiavi QuickTime com.apple.quicktime.*): modello, iOS, date, risoluzione.
+- Nuovo modulo "case_context": abbinamento Live Photo (ContentIdentifier) con verifica di numero, modello e orario;
+  più versioni dello stesso scatto; numerazione IMG_xxxx coerente con l'ordine delle date (con rollover 9999→0001
+  e riconoscimento dei cambi di fuso). Cache per SHA-256 nel caso.
+- Carica e analizza: acquisisce tutto il lotto prima di analizzarlo, così il confronto tra reperti non dipende
+  dall'ordine dei file.
+- Aggiunto .gitignore.
 
 ## 1.1.0
 

@@ -1,4 +1,4 @@
-# Forensic Vision Pro 1.1 - build completa e autonoma per Windows.
+# Forensic Vision Pro 1.4 - build completa e autonoma per Windows.
 # Avvio: doppio clic su build_windows.bat nella cartella principale del progetto.
 #
 # Verifica e, se manca, installa automaticamente tutto ciò che serve:
@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $Root = Split-Path $PSScriptRoot -Parent
 Set-Location $Root
-$Version = "1.2.0"
+$Version = "1.4.0"
 New-Item -ItemType Directory -Force build | Out-Null
 Start-Transcript -Path "build\build.log" -Force | Out-Null
 

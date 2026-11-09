@@ -1,4 +1,4 @@
-# Manuale utente — Forensic Vision Pro 1.1
+# Manuale utente — Forensic Vision Pro 1.4
 
 ## Primo avvio
 
