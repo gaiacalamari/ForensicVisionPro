@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 (in sviluppo)
+## 1.3.0 (in corso)
 
 - HEIC/HEIF: decodifica con pillow-heif; i file iPhone passano per tutte le analisi dei pixel (prima erano esclusi).
 - Nuovo parser HEIF: item, iloc, iref, proprietà, griglia di tile, miniature, Exif/XMP, immagini ausiliarie
