@@ -7,6 +7,7 @@
 - bin/tools.lock.json registra URL, hash, dimensione, data e output di verifica di ogni strumento,
   per documentare nei report quali binari sono stati usati.
 - Uno strumento già presente con lo stesso hash non viene riscaricato (usare --force per farlo).
+- "extract_optional" estrae file utili ma non indispensabili (es. i testi di licenza) se l'archivio li contiene.
 - Le voci con "optional": true (es. i modelli della stima della posa) non bloccano la build: un errore o un'impronta
   non ancora fissata produce solo un avviso.
 - --pin NOME fissa l'impronta di una voce: scarica il file da tutte le sorgenti elencate e scrive lo SHA-256 in
@@ -98,6 +99,14 @@ def _extract(zf: zipfile.ZipFile, tool: dict, bin_dir: Path) -> list[str]:
     wanted = {_safe_name(d) for d in tool.get("extract", {}).values()}
     if wanted - done:
         raise FetchError(f"{tool['name']}: file non trovati nell'archivio: {', '.join(sorted(wanted - done))}")
+    for pattern, dest in tool.get("extract_optional", {}).items():   # es. testi di licenza: se mancano, pazienza
+        dest = _safe_name(dest)
+        match = next((n for n in names if fnmatch.fnmatch(n, pattern) and not n.endswith("/")), None)
+        if match and dest not in done:
+            with zf.open(match) as src, open(bin_dir / dest, "wb") as out:
+                shutil.copyfileobj(src, out)
+            done.add(dest)
+            written.append(dest)
     for pattern, dest in tool.get("dirs", {}).items():
         dest = _safe_name(dest)
         prefix = next((n for n in names if n.endswith("/") and fnmatch.fnmatch(n.rstrip("/"), pattern)), None)

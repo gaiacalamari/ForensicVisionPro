@@ -9,6 +9,12 @@
 
 Pre e post-elaborazione seguono rtmlib (Apache-2.0, T. Jiang): letterbox YOLOX con riempimento 114, ritaglio
 affine top-down con margine 1.25, normalizzazione mean/std sul frame BGR, decodifica SimCC con fattore 2.
+
+Avviso ai sensi della licenza Apache-2.0, sezione 4(b): questo file contiene codice derivato da rtmlib
+(https://github.com/Tau-J/rtmlib, Copyright 2018-2020 Open-MMLab; T. Jiang), modificato per Forensic Vision Pro:
+rimossi download dei modelli e backend diversi da ONNX Runtime su CPU, decodifica YOLOX limitata alla classe persona
+per i modelli senza NMS, aggiunta la verifica delle impronte dei modelli. Testo della licenza:
+licenses/Apache-2.0.txt.
 """
 from __future__ import annotations
 

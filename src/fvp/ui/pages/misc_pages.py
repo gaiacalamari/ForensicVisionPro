@@ -135,6 +135,17 @@ class SettingsPage(Page):
         rr.addStretch(1)
         l3.addLayout(rr)
         self.root.addWidget(g3, 1)
+        g4 = QGroupBox("Crediti e licenze")
+        l4 = QHBoxLayout(g4)
+        info = QLabel("Forensic Vision Pro usa componenti di terze parti (Qt, Pillow, NumPy, OpenCV, pillow-heif, "
+                      "ONNX Runtime, ExifTool di Phil Harvey, FFmpeg) e metodologie di altri progetti (Sports2D, "
+                      "StegoIntelligence). Autori, licenze e sorgenti sono elencati nei crediti.")
+        info.setWordWrap(True)
+        l4.addWidget(info, 1)
+        cb = QPushButton("Crediti e licenze…")
+        cb.clicked.connect(self._credits)
+        l4.addWidget(cb)
+        self.root.addWidget(g4)
         state.settings_changed.connect(self.refresh)
 
     def refresh(self) -> None:
@@ -152,6 +163,27 @@ class SettingsPage(Page):
                                  for c in checks],
                    [None if c.ok else QColor(C["red"] if c.level == "essenziale" else C["yellow"]) for c in checks],
                    sortable=False)
+
+    def _credits(self) -> None:
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTextBrowser, QVBoxLayout
+
+        from ...core import credits
+        d = QDialog(self)
+        d.setWindowTitle("Crediti e licenze di terze parti")
+        d.resize(900, 700)
+        lay = QVBoxLayout(d)
+        tb = QTextBrowser()
+        tb.setOpenExternalLinks(True)
+        tb.setMarkdown(credits.notices_text())
+        lay.addWidget(tb, 1)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        op = bb.addButton("Apri i testi delle licenze", QDialogButtonBox.ButtonRole.ActionRole)
+        op.setEnabled(credits.licenses_dir().is_dir())
+        op.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(credits.licenses_dir()))))
+        bb.rejected.connect(d.reject)
+        lay.addWidget(bb)
+        self._credits_dialog = d          # riferimento per i test
+        d.show()
 
     def _recheck(self) -> None:
         from ...core import selfcheck

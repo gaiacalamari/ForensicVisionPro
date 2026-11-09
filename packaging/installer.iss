@@ -23,6 +23,8 @@ Source: "..\docs\*"; DestDir: "{app}\docs"; Flags: recursesubdirs ignoreversion
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\ForensicVisionPro.exe"
 Name: "{group}\Manuale utente"; Filename: "{app}\docs\MANUALE_UTENTE.md"
+Name: "{group}\Crediti e licenze di terze parti"; Filename: "{app}\THIRD_PARTY_NOTICES.md"
+Name: "{group}\Testi delle licenze"; Filename: "{app}\licenses"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\ForensicVisionPro.exe"; Tasks: desktopicon
 [Tasks]
 Name: "desktopicon"; Description: "Crea un'icona sul desktop"; Flags: unchecked

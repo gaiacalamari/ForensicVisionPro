@@ -1,5 +1,5 @@
 {
-  "_info": "Strumenti esterni scaricati in questa cartella da tools/fetch_tools.py. Per aggiungerne uno, copiare un blocco e adattarlo. Campi: platform (win32, linux, darwin o any), urls (provati in ordine), sha256 fisso oppure sha256_url, extract (file nell'archivio -> nome in bin), dirs (cartelle nell'archivio -> nome in bin), check (argomenti per verificare l'esecuzione).",
+  "_info": "Strumenti esterni scaricati in questa cartella da tools/fetch_tools.py. Per aggiungerne uno, copiare un blocco e adattarlo. Campi: platform (win32, linux, darwin o any), urls (provati in ordine), sha256 fisso oppure sha256_url, extract (file nell'archivio -> nome in bin), dirs (cartelle nell'archivio -> nome in bin), check (argomenti per verificare l'esecuzione). extract_optional (come extract, ma i file mancanti non sono un errore: usato per i testi di licenza).",
   "tools": [
     {
       "name": "exiftool",
@@ -20,7 +20,8 @@
       "check": [
         "exiftool.exe",
         "-ver"
-      ]
+      ],
+      "license": "Stessi termini di Perl (Artistic o GPL)"
     },
     {
       "name": "ffmpeg",
@@ -37,7 +38,13 @@
       "check": [
         "ffprobe.exe",
         "-version"
-      ]
+      ],
+      "extract_optional": {
+        "*/LICENSE": "ffmpeg-LICENSE.txt",
+        "*/LICENSE.txt": "ffmpeg-LICENSE.txt",
+        "*/README.txt": "ffmpeg-README.txt"
+      },
+      "license": "GPL-3.0 (build gyan.dev)"
     },
     {
       "name": "pose-detector",

@@ -104,9 +104,14 @@ if ($LASTEXITCODE -ne 0) {
 Remove-Item Env:\QT_QPA_PLATFORM
 
 Step "6/9 Eseguibile (PyInstaller)"
+# Licenze di tutti i componenti inclusi: la build si ferma se un componente di runtime non ne ha
+Run $vpy @("tools\collect_licenses.py", "build\third_party_licenses")
 Run $vpy @("-m", "PyInstaller", "packaging\fvp.spec", "--noconfirm", "--distpath", "dist", "--workpath", "build\pyi")
 $exe = "dist\ForensicVisionPro\ForensicVisionPro.exe"
 if (-not (Test-Path $exe)) { Fail "PyInstaller non ha prodotto $exe" }
+# Note e licenze anche accanto all'eseguibile (visibili nella versione portable e nell'installazione)
+Copy-Item "THIRD_PARTY_NOTICES.md" "dist\ForensicVisionPro\" -Force
+Copy-Item "build\third_party_licenses" "dist\ForensicVisionPro\licenses" -Recurse -Force
 
 Step "7/9 Verifica dell'eseguibile finito (--selfcheck)"
 $report = Join-Path $Root "build\selfcheck-exe.json"
