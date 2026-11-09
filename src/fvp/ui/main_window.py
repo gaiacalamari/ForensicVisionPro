@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QLabel, QLi
 
 from .. import APP_NAME, __version__
 from . import theme
+from .pages.all_data import AllDataPage
 from .pages.advanced import ComparisonPage, PrnuPage, SteganalysisPage
 from .pages.analysis_views import AIDetectionPage, ImageForensicsPage, ManipulationPage, VideoForensicsPage
 from .pages.cases_page import CasesPage
@@ -27,7 +28,7 @@ from .theme import C
 
 # None = intestazione di sezione non selezionabile
 SECTIONS = [
-    ("FLUSSO DI LAVORO", ["Case Management", "Carica e analizza", "Dashboard"]),
+    ("FLUSSO DI LAVORO", ["Case Management", "Carica e analizza", "Dashboard", "All Data"]),
     ("ANALISI", ["Image Forensics", "Manipulation Detection", "Steganalysis", "Metadata Analyzer",
                  "Timeline Analyzer", "PRNU / Sensore", "AI Detection", "Video Forensics", "Human Pose"]),
     ("STRUMENTI", ["Comparison Tool", "Hex Viewer", "File Integrity", "Reports"]),
@@ -36,6 +37,7 @@ SECTIONS = [
 NAV = [n for _, items in SECTIONS for n in items]
 LABELS = {
     "Case Management": "Casi", "Carica e analizza": "Carica e analizza", "Dashboard": "Riepilogo",
+    "All Data": "Tutti i dati rinvenuti",
     "Image Forensics": "Analisi visiva", "Manipulation Detection": "Possibili modifiche",
     "Steganalysis": "Contenuti nascosti", "Metadata Analyzer": "Metadati", "Timeline Analyzer": "Date e orari",
     "PRNU / Sensore": "Fotocamera di origine", "AI Detection": "Intelligenza artificiale",
@@ -47,6 +49,7 @@ HINTS = {
     "Case Management": "Crea o apri un caso: è il primo passo obbligatorio.",
     "Carica e analizza": "Aggiungi immagini, video, audio o cartelle al caso e avvia l'analisi.",
     "Dashboard": "Cosa ha trovato il programma, in parole semplici.",
+    "All Data": "Ogni dato estratto dal reperto, anche senza anomalie: metadati, date, stream, movimento, hash.",
     "Image Forensics": "L'immagine affiancata alle mappe di analisi (ELA, copia di regioni, contrasto esaltato…).",
     "Manipulation Detection": "Segni di ritocchi, regioni copiate, ricompressioni.",
     "Steganalysis": "Messaggi, file o testo nascosti nell'immagine o nei suoi dati.",
@@ -55,7 +58,7 @@ HINTS = {
     "PRNU / Sensore": "Confronto con l'impronta del sensore di fotocamere note.",
     "AI Detection": "Indizi di generazione con intelligenza artificiale nei metadati.",
     "Video Forensics": "Tracce, durate e codifica di video e audio.",
-    "Human Pose": "Posa e angoli delle persone, continuità del movimento tra i frame (Sports2D).",
+    "Human Pose": "Video annotato, angoli nel tempo e continuità del movimento (Sports2D e Pose2Sim).",
     "Comparison Tool": "Confronta due immagini e trova quasi-duplicati.",
     "Hex Viewer": "Il contenuto grezzo del file, byte per byte (sola lettura).",
     "File Integrity": "Calcola e confronta le impronte hash di file e cartelle.",
@@ -139,7 +142,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         s = state
         self.pages = {
-            "Case Management": CasesPage(s), "Carica e analizza": LoadPage(s), "Dashboard": DashboardPage(s),
+            "Case Management": CasesPage(s), "Carica e analizza": LoadPage(s), "Dashboard": DashboardPage(s), "All Data": AllDataPage(s),
             "Image Forensics": ImageForensicsPage(s), "Manipulation Detection": ManipulationPage(s),
             "Steganalysis": SteganalysisPage(s), "Metadata Analyzer": MetadataPage(s),
             "Timeline Analyzer": TimelinePage(s), "PRNU / Sensore": PrnuPage(s), "AI Detection": AIDetectionPage(s),

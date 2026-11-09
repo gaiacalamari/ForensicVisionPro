@@ -106,3 +106,26 @@ Controllare e conservare il diff di `bin/tools.json` (le due impronte SHA-256): 
 accetta solo quei file. In Impostazioni → Stato del sistema la voce *Stima della posa* deve risultare OK. In
 alternativa i file `pose_det_yolox_m_humanart.onnx` e `pose_rtmpose_m_halpe26.onnx` possono essere copiati in
 `<cartella utente>/ForensicVisionPro/models` o indicati in `settings.json` (`pose_det_model`, `pose_model`).
+
+## Video annotato, angoli e Sports2D / Pose2Sim originali
+
+Nella pagina **Persone e movimento**, scheda *Video e angoli*: il video annotato mostra scheletro, angoli e numero di
+frame originale su ogni fotogramma. I pulsanti *◀ frame* / *frame ▶* avanzano di un fotogramma; il grafico sotto mostra
+gli angoli scelti della persona selezionata, il cursore rosso segue il video e un clic sul grafico sposta il video.
+Le linee tratteggiate sono le discontinuità (rosse: di scena, arancio: isolate).
+
+I programmi originali di David Pagnon si installano una volta, con Internet e Python 3.11+:
+
+```bat
+py -3.12 tools\install_sports2d.py
+```
+
+L'ambiente viene creato in `<utente>\ForensicVisionPro\sports2d-env` (la build lo fa da sola). Poi, scheda
+*Sports2D / Pose2Sim originali* → *Esegui Sports2D originale sul reperto*, oppure modulo omonimo in Carica e analizza.
+Sports2D lavora su una copia verificata del reperto; i suoi risultati compaiono in *Video e angoli* scegliendo la
+fonte "Sports2D originale". Senza statura indicata in Impostazioni non viene fatta alcuna conversione in metri.
+Pose2Sim viene usato tramite Sports2D (filtri, metri, OpenSim): la ricostruzione 3D di Pose2Sim richiede più telecamere
+calibrate e non si applica a un video singolo.
+
+La pagina **Tutti i dati rinvenuti** riporta ogni dato estratto dall'ultima analisi del reperto, anche quando non ci
+sono anomalie, con le anomalie in cima.

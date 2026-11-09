@@ -114,6 +114,18 @@ def _pose(settings: Settings) -> Check:
         return Check(name, OPTIONAL, False, f"{type(e).__name__}: {e}")
 
 
+def _sports2d(settings: Settings) -> Check:
+    """Sports2D e Pose2Sim originali (facoltativi, ambiente Python separato)."""
+    name = "Sports2D / Pose2Sim originali (ambiente separato)"
+    try:
+        from ..engines import sports2d_ext
+        st = sports2d_ext.status(settings)
+        return Check(name, OPTIONAL, st["ok"], st.get("python", "") if st["ok"] else st["detail"],
+                     st["detail"] if st["ok"] else "")
+    except Exception as e:  # noqa: BLE001 - modulo facoltativo
+        return Check(name, OPTIONAL, False, f"{type(e).__name__}: {e}")
+
+
 def _writable(name: str, path: Path) -> Check:
     try:
         path.mkdir(parents=True, exist_ok=True)
@@ -167,6 +179,7 @@ def run(settings: Settings | None = None) -> list[Check]:
         checks += [_exiftool(settings, Path(td)), _ffprobe(settings, Path(td)), _heif(Path(td))]
     checks.append(_ffmpeg(settings))
     checks.append(_pose(settings))
+    checks.append(_sports2d(settings))
     checks += _bundle_integrity()
     checks += [_writable("Cartella dei casi", settings.cases_path), _writable("Archivio impronte PRNU", settings.prnu_path)]
     return checks

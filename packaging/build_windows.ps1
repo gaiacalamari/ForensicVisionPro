@@ -88,6 +88,25 @@ Write-Host "Pacchetti installati registrati in build\pip-freeze.txt"
 
 Step "3/9 Strumenti esterni (bin\tools.json)"
 Run $vpy @("tools\fetch_tools.py")
+# Modelli della stima della posa (Persone e movimento): se l'impronta non e' ancora fissata in bin\tools.json la si
+# fissa scaricando i file da OpenMMLab e dal mirror Hugging Face e accettandoli solo se i due SHA-256 coincidono.
+$tj = Get-Content "bin\tools.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$unpinned = @($tj.tools | Where-Object { $_.group -eq "pose-models" -and -not $_.sha256 })
+if ($unpinned.Count -gt 0) {
+    Write-Host "Modelli della posa senza impronta: confronto tra le due sorgenti (fetch_tools.py --pin pose-models)."
+    & $vpy tools\fetch_tools.py --pin pose-models | Out-Host
+    if ($LASTEXITCODE -ne 0) { Warn "impronte dei modelli della posa non fissate (sorgenti diverse o non raggiungibili)." }
+    else { Write-Host "Impronte scritte in bin\tools.json: conservare e committare il file (documenta i modelli usati)." }
+}
+& $vpy tools\fetch_tools.py --only pose-models | Out-Host
+if ($LASTEXITCODE -ne 0) { Warn "modelli della posa non installati: Persone e movimento non sara' disponibile nell'eseguibile." }
+
+# Sports2D e Pose2Sim originali in un ambiente separato (facoltativo; FVP_SKIP_SPORTS2D=1 per saltarlo)
+if ($env:FVP_SKIP_SPORTS2D -ne "1") {
+    Write-Host "`nSports2D e Pose2Sim originali: ambiente separato in $env:USERPROFILE\ForensicVisionPro\sports2d-env"
+    & $py tools\install_sports2d.py --target "$env:USERPROFILE\ForensicVisionPro\sports2d-env" | Out-Host
+    if ($LASTEXITCODE -ne 0) { Warn "Sports2D non installato: il modulo dei programmi originali restera' non disponibile." }
+}
 
 Step "4/9 Controllo del sistema (sorgenti)"
 $env:PYTHONPATH = "src"

@@ -35,7 +35,7 @@ from ..core.findings import Category, Finding, Level
 from ..core.tasks import CancelToken
 from .pose_model import PoseUnavailable  # noqa: F401  (rilanciato dalla pipeline)
 
-__all__ = ["analyze", "PoseUnavailable", "Params", "compute_angles", "transitions", "cadence"]
+__all__ = ["analyze", "PoseUnavailable", "Params", "compute_angles", "transitions", "cadence", "read_mot", "read_trc"]
 MODULE = "pose"
 METHOD = "Stima della posa 2D (YOLOX + RTMPose HALPE-26) e cinematica in stile Sports2D"
 
@@ -117,7 +117,7 @@ class Params:
     jump_strong: float = 0.5        # salto netto anche per una persona sola
     scale_jump: float = 1.33        # rapporto di altezza tra frame consecutivi
     hyperext_deg: float = -25.0     # iperestensione di gomito/ginocchio
-    save_video: bool = False
+    save_video: bool = True         # Sports2D: save_vid (video con scheletro e angoli)
 
     @classmethod
     def from_settings(cls, s) -> "Params":
@@ -125,7 +125,7 @@ class Params:
         p.max_frames = int(getattr(s, "pose_max_frames", p.max_frames))
         p.frame_step = max(1, int(getattr(s, "pose_frame_step", p.frame_step)))
         p.det_every = max(1, int(getattr(s, "pose_det_every", p.det_every)))
-        p.save_video = bool(getattr(s, "pose_save_video", p.save_video))
+        p.save_video = bool(getattr(s, "pose_annotated_video", p.save_video))
         return p
 
 
@@ -514,6 +514,60 @@ def draw_pose(img: np.ndarray, k: np.ndarray, s: np.ndarray, label: str = "", th
             cv2.putText(img, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6 * sc, (255, 255, 255), 1 * sc, cv2.LINE_AA)
 
 
+JOINT_ANGLE_AT = {"right ankle": "RAnkle", "left ankle": "LAnkle", "right knee": "RKnee", "left knee": "LKnee",
+                  "right hip": "RHip", "left hip": "LHip", "right shoulder": "RShoulder",
+                  "left shoulder": "LShoulder", "right elbow": "RElbow", "left elbow": "LElbow"}
+ANGLE_SHORT = {"right ankle": "cav dx", "left ankle": "cav sx", "right knee": "gin dx", "left knee": "gin sx",
+               "right hip": "anca dx", "left hip": "anca sx", "right shoulder": "spalla dx",
+               "left shoulder": "spalla sx", "right elbow": "gom dx", "left elbow": "gom sx",
+               "right foot": "piede dx", "left foot": "piede sx", "right shank": "gamba dx", "left shank": "gamba sx",
+               "right thigh": "coscia dx", "left thigh": "coscia sx", "pelvis": "bacino", "trunk": "tronco",
+               "shoulders": "spalle", "head": "testa", "right arm": "braccio dx", "left arm": "braccio sx",
+               "right forearm": "avamb. dx", "left forearm": "avamb. sx"}
+
+
+def _text(img: np.ndarray, txt: str, org: tuple[int, int], scale: float, col=(255, 255, 255), th: int = 1) -> None:
+    cv2.putText(img, txt, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), th + 3, cv2.LINE_AA)
+    cv2.putText(img, txt, org, cv2.FONT_HERSHEY_SIMPLEX, scale, col, th, cv2.LINE_AA)
+
+
+def draw_angles(img: np.ndarray, k: np.ndarray, s: np.ndarray, label: str, column: int, thr: float = 0.3) -> None:
+    """Come la visualizzazione di Sports2D: valore di ogni angolo articolare vicino all'articolazione e l'elenco
+    completo degli angoli della persona in una colonna in alto a sinistra. Angoli calcolati sui keypoint del frame
+    (non filtrati): sono quelli che lo spettatore vede sullo scheletro."""
+    xy = np.where((s >= thr)[:, None], k, np.nan)
+    ang, _side = compute_angles(xy)
+    sc = max(0.4, max(img.shape[:2]) / 1600)
+    th = max(1, int(round(sc * 1.5)))
+    for name, joint in JOINT_ANGLE_AT.items():
+        a = ang.get(name, float("nan"))
+        j = KP[joint]
+        if np.isfinite(a) and s[j] >= thr:
+            x, y = int(k[j, 0]), int(k[j, 1])
+            col = L_COL if name.startswith("left") else R_COL
+            cv2.circle(img, (x, y), int(14 * sc + 6), col, th, cv2.LINE_AA)
+            _text(img, f"{a:.0f}", (x + int(12 * sc + 6), y - 4), 0.5 * sc + 0.15, col, th)
+    x0 = 8 + column * int(190 * sc + 60)
+    y = int(22 * sc + 14)
+    _text(img, label, (x0, y), 0.6 * sc + 0.2, (255, 255, 255), th + 1)
+    for name in ANGLE_NAMES:
+        a = ang.get(name, float("nan"))
+        if not np.isfinite(a):
+            continue
+        y += int(16 * sc + 8)
+        if y > img.shape[0] - 30:
+            break
+        col = L_COL if name.startswith("left") else R_COL if name.startswith("right") else (230, 230, 230)
+        _text(img, f"{ANGLE_SHORT.get(name, name)}: {a:.1f}", (x0, y), 0.42 * sc + 0.12, col, th)
+
+
+def stamp(img: np.ndarray, src_frame: int, t: float) -> None:
+    """Numero del frame originale e tempo, impressi su ogni fotogramma del video annotato."""
+    sc = max(0.4, max(img.shape[:2]) / 1600)
+    _text(img, f"frame {src_frame}  t = {t:.3f} s", (8, img.shape[0] - 10), 0.5 * sc + 0.15, (255, 255, 255),
+          max(1, int(round(sc * 1.5))))
+
+
 def _caption(img: np.ndarray, text: str) -> np.ndarray:
     bar = np.full((34, img.shape[1], 3), 30, np.uint8)
     cv2.putText(bar, text, (8, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
@@ -557,6 +611,97 @@ def motion_plot(path: Path, times: np.ndarray, speed: np.ndarray, p: Params, fla
     cv2.putText(img, "velocita' massima tra frame (altezze del corpo al secondo) - rosso: discontinuita' di scena, "
                      "arancio: isolate", (ml, h - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 0), 1, cv2.LINE_AA)
     cv2.imwrite(str(path), img)
+
+
+def angles_plot(path: Path, times: np.ndarray, angles: dict[str, np.ndarray], title: str) -> bool:
+    """Grafici degli angoli nel tempo, uno per angolo, come le finestre dei grafici di Sports2D."""
+    names = [n for n in ANGLE_NAMES if n in angles and np.isfinite(angles[n]).sum() >= 2]
+    if not names or len(times) < 2:
+        return False
+    cols, cw, ch = 4, 300, 170
+    rows = (len(names) + cols - 1) // cols
+    img = np.full((rows * ch + 40, cols * cw, 3), 255, np.uint8)
+    cv2.putText(img, title, (10, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 1, cv2.LINE_AA)
+    t0, t1 = float(times[0]), float(times[-1])
+    for i, n in enumerate(names):
+        ox, oy = (i % cols) * cw, 40 + (i // cols) * ch
+        v = angles[n]
+        f = v[np.isfinite(v)]
+        lo, hi = float(f.min()), float(f.max())
+        if hi - lo < 10:
+            lo, hi = (lo + hi) / 2 - 5, (lo + hi) / 2 + 5
+        ml, mb = 44, 22
+        X = lambda t: int(ox + ml + (t - t0) / max(t1 - t0, 1e-6) * (cw - ml - 10))  # noqa: E731
+        Y = lambda a: int(oy + ch - mb - (a - lo) / (hi - lo) * (ch - mb - 24))       # noqa: E731
+        cv2.rectangle(img, (ox + ml, oy + 20), (ox + cw - 10, oy + ch - mb), (200, 200, 200), 1)
+        col = (200, 120, 40) if n.startswith("left") else (40, 60, 200) if n.startswith("right") else (60, 140, 60)
+        prev = None
+        for t, a in zip(times, v):
+            if not np.isfinite(a):
+                prev = None
+                continue
+            pt = (X(t), Y(a))
+            if prev:
+                cv2.line(img, prev, pt, col, 1, cv2.LINE_AA)
+            prev = pt
+        cv2.putText(img, f"{ANGLE_LABELS_IT.get(n, n)} (gradi)", (ox + ml, oy + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.42,
+                    (0, 0, 0), 1, cv2.LINE_AA)
+        for a in (lo, hi):
+            cv2.putText(img, f"{a:.0f}", (ox + 4, Y(a) + 4), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 0, 0), 1, cv2.LINE_AA)
+        for t in (t0, t1):
+            cv2.putText(img, f"{t:.1f}s", (X(t) - 12, oy + ch - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (0, 0, 0), 1,
+                        cv2.LINE_AA)
+    cv2.imwrite(str(path), img)
+    return True
+
+
+def read_mot(path: str | Path) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Legge un file .mot (di questo programma, di Sports2D o di Pose2Sim/OpenSim): tempi e colonne numeriche."""
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    i = next((n for n, ln in enumerate(lines) if ln.strip().lower() == "endheader"), -1)
+    hdr = lines[i + 1].split("\t") if i + 1 < len(lines) else []
+    rows = []
+    for ln in lines[i + 2:]:
+        if not ln.strip():
+            continue
+        vals = []
+        for x in ln.split("\t")[:len(hdr)]:
+            try:
+                vals.append(float(x))
+            except ValueError:
+                vals.append(float("nan"))
+        rows.append(vals + [float("nan")] * (len(hdr) - len(vals)))
+    a = np.array(rows, float).reshape(-1, len(hdr)) if hdr else np.zeros((0, 0))
+    if not hdr:
+        return np.zeros(0), {}
+    ti = next((n for n, h in enumerate(hdr) if h.strip().lower() == "time"), 0)
+    cols = {h.strip().replace("_", " "): a[:, n] for n, h in enumerate(hdr) if n != ti and h.strip()}
+    return a[:, ti], cols
+
+
+def read_trc(path: str | Path) -> tuple[np.ndarray, list[str], np.ndarray]:
+    """Legge un file .trc (Sports2D/Pose2Sim): tempi, nomi dei marker, coordinate (frame, marker, 3)."""
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    names = [x for x in lines[3].split("\t")[2:] if x.strip()] if len(lines) > 3 else []
+    times, data = [], []
+    for ln in lines[5:]:
+        parts = ln.split("\t")
+        if len(parts) < 2 or not parts[1].strip():
+            continue
+        try:
+            times.append(float(parts[1]))
+        except ValueError:
+            continue
+        v = []
+        for x in parts[2:2 + 3 * len(names)]:
+            try:
+                v.append(float(x))
+            except ValueError:
+                v.append(float("nan"))
+        v += [float("nan")] * (3 * len(names) - len(v))
+        data.append(v)
+    arr = np.array(data, float).reshape(len(times), len(names), 3) if names else np.zeros((len(times), 0, 3))
+    return np.array(times, float), names, arr
 
 
 def write_trc(path: Path, times: np.ndarray, xy: np.ndarray, fps: float) -> None:
@@ -699,6 +844,7 @@ def _analyze_image(path: Path, out_dir: Path, est, engine: dict, params: dict, p
                         "angles": {n: {"min": round(a, 1), "max": round(a, 1), "mean": round(a, 1), "n": 1}
                                    for n, a in ang.items() if np.isfinite(a)}})
         draw_pose(over, k, s, f"P{t.tid}", p.kpt_thr)
+        draw_angles(over, k, s, f"P{t.tid}", len(persons) - 1, p.kpt_thr)
         unusual += unusual_posture(t, p)
         for j, nm in enumerate(HALPE26):
             rows.append([0, 0.0, t.tid, nm, f"{k[j, 0]:.2f}", f"{k[j, 1]:.2f}", f"{s[j]:.3f}"])
@@ -783,8 +929,10 @@ def _analyze_video(path: Path, out_dir: Path, est, engine: dict, params: dict, p
                     writer = cv2.VideoWriter(str(out_dir / "pose_overlay.mp4"), cv2.VideoWriter_fourcc(*"mp4v"),
                                              fps / p.frame_step if fps else 25, (frame.shape[1], frame.shape[0]))
                 vf = frame.copy()
-                for tid, j in matched:
+                for col_i, (tid, j) in enumerate(matched):
                     draw_pose(vf, kpts[j], scores[j], f"P{tid}", p.kpt_thr)
+                    draw_angles(vf, kpts[j], scores[j], f"P{tid}", col_i, p.kpt_thr)
+                stamp(vf, src_idx, t)
                 writer.write(vf)
             n += 1
             if total:
@@ -805,6 +953,7 @@ def _analyze_video(path: Path, out_dir: Path, est, engine: dict, params: dict, p
     for e in trans:
         e["source_frame"] = src_of[e["frame"]]
     persons, unusual, exports = [], [], {}
+    plot_arts: dict = {}
     speed = np.full(n, np.nan)
     for t in tracks:
         hs = [body_height(k, s, p.reliable_thr) for k, s in zip(t.kpts, t.scores)]
@@ -829,6 +978,14 @@ def _analyze_video(path: Path, out_dir: Path, est, engine: dict, params: dict, p
             write_mot(mot, series["span_times"], series["angles"])
             exports[trc.name] = _file_entry(trc)
             exports[mot.name] = _file_entry(mot)
+            summ["trc"], summ["mot"] = trc.name, mot.name
+            ap = out_dir / f"person_{t.tid:02d}_angles.png"
+            if angles_plot(ap, series["span_times"], series["angles"], f"P{t.tid}: angoli nel tempo (filtrati, "
+                                                                          "Butterworth 6 Hz)"):
+                exports[ap.name] = _file_entry(ap)
+                summ["angles_plot"] = ap.name
+                if "pose_angles" not in plot_arts or len(t.frames) > plot_arts["_len"]:
+                    plot_arts.update({"pose_angles": str(ap), "_len": len(t.frames)})
     csvp = out_dir / "keypoints_raw.csv"
     with open(csvp, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -853,8 +1010,11 @@ def _analyze_video(path: Path, out_dir: Path, est, engine: dict, params: dict, p
     if jumps:
         arts["pose_jumps"] = str(jumps)
         exports[jumps.name] = _file_entry(jumps)
+    if "pose_angles" in plot_arts:
+        arts["pose_angles"] = plot_arts["pose_angles"]
     if (out_dir / "pose_overlay.mp4").is_file():
         exports["pose_overlay.mp4"] = _file_entry(out_dir / "pose_overlay.mp4")
+        arts["pose_video"] = str(out_dir / "pose_overlay.mp4")
     res = {"kind": "video", "engine": engine, "params": params,
            "frames": {"total_declared": total, "analyzed": n, "step": p.frame_step, "fps_declared": round(fps, 3),
                       "fps_effective": round(eff_fps, 3), "duration_analyzed_s": round(float(times_a[-1] - times_a[0]), 3),

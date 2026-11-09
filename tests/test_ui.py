@@ -118,6 +118,8 @@ def test_load_accepts_video_and_audio(ui, dataset, tmp_path):
         wf.writeframes(b"\x00\x00" * 800)
     (tmp_path / "note.txt").write_text("non multimediale")
     shutil.copy(dataset / "original.jpg", tmp_path / "foto.jpg")
+    assert lp.checks["pose"].isChecked() and lp.checks["sports2d"].isChecked()   # Completa analizza tutto
+    lp.preset.setCurrentText("Completa senza stima della posa (più rapida)")
     lp._add_paths([vid, wav, tmp_path / "note.txt", tmp_path / "foto.jpg"])
     kinds = {Path(q["path"]).name: q["kind"] for q in lp.queue}
     assert kinds == {"clip.avi": "video", "voce.wav": "audio", "foto.jpg": "immagine"}
@@ -188,7 +190,7 @@ def test_pose_page(ui, tmp_path, monkeypatch):
     assert w.current_name() == "Human Pose"
     assert pp.trans.rowCount() == 1 and pp.trans.item(0, 0).text() == "40" and pp.trans.item(0, 2).text() == "scena"
     assert pp.persons.rowCount() >= 1 and pp.angles.rowCount() > 10 and pp.exports.rowCount() >= 4
-    assert pp.art_combo.count() == 3 and not pp.view.item.pixmap().isNull()
+    assert pp.art_combo.count() == 4 and not pp.view.item.pixmap().isNull()   # + grafico degli angoli
     assert "discontinuità di scena" in pp.status.text()
 
 

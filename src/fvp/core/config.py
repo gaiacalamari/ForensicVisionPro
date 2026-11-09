@@ -38,7 +38,12 @@ class Settings:
     pose_max_frames: int = 3600        # frame analizzati al massimo per video
     pose_frame_step: int = 1           # 1 = ogni frame (necessario per le discontinuità tra frame)
     pose_det_every: int = 4            # rilevamento delle persone ogni N frame (Sports2D: det_frequency)
-    pose_save_video: bool = False      # video con lo scheletro sovrapposto negli artifacts
+    pose_annotated_video: bool = True  # video con scheletro, angoli e numero di frame (come Sports2D)
+    # Sports2D e Pose2Sim originali (D. Pagnon), eseguiti in un ambiente Python separato
+    sports2d_python: str = ""          # vuoto = <home>/sports2d-env
+    sports2d_timeout_s: int = 7200
+    sports2d_person_height_m: float = 0.0   # >0: conversione pixel -> metri di Sports2D con questa statura
+    sports2d_do_ik: bool = False       # cinematica inversa OpenSim tramite Pose2Sim (richiede statura)
     hash_algorithms: list[str] = field(default_factory=lambda: ["md5", "sha1", "sha256", "sha512", "sha3_256", "blake2b"])
 
     @property

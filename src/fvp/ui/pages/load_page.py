@@ -24,14 +24,16 @@ MODS = [("signature", "Formato reale del file"), ("structure", "Struttura intern
         ("hidden_text", "Testo nascosto: metadati, byte del file, scritte quasi invisibili"),
         ("quality", "Caratteristiche, volti, hash percettivi"), ("prnu", "Confronto con fotocamere note (PRNU)"),
         ("video", "Video e audio (FFprobe)"),
-        ("pose", "Persone e movimento: posa, angoli, discontinuità (Sports2D)"),
+        ("pose", "Persone e movimento: video annotato, angoli, discontinuità (metodo Sports2D)"),
+        ("sports2d", "Sports2D e Pose2Sim originali (ambiente separato, se installato)"),
         ("carving_scan", "File incorporati nel file")]
 PRESETS = {
-    # La stima della posa richiede molto calcolo sui video: si attiva con il suo profilo o a mano
-    "Completa (consigliata)": [k for k, _ in MODS if k != "pose"],
+    # Completa: tutti i moduli, compresa la stima della posa (sui video richiede tempo: circa 3-10 frame/s su CPU)
+    "Completa (consigliata)": [k for k, _ in MODS],
+    "Completa senza stima della posa (più rapida)": [k for k, _ in MODS if k not in ("pose", "sports2d")],
     "Rapida: struttura, metadati, date, ELA": ["signature", "structure", "metadata", "timestamps", "device", "image",
                                                "carving_scan"],
-    "Persone e movimento (video)": ["signature", "structure", "metadata", "timestamps", "video", "pose"],
+    "Persone e movimento (video)": ["signature", "structure", "metadata", "timestamps", "video", "pose", "sports2d"],
     "Contenuti nascosti": ["signature", "structure", "metadata", "stego", "stegointel", "hidden_text", "carving_scan"],
     "Personalizzata": None,
 }

@@ -6,7 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QSpinBox, QVBoxLayout)
+                               QDoubleSpinBox, QLineEdit, QPushButton, QSpinBox, QVBoxLayout)
 
 from ... import __version__
 from ...core.tools import get_tool
@@ -114,6 +114,34 @@ class SettingsPage(Page):
         self.timeout.setValue(s.tool_timeout_s)
         f2.addRow("Timeout strumenti (s)", self.timeout)
         self.root.addWidget(g2)
+        g5 = QGroupBox("Persone e movimento · Sports2D e Pose2Sim originali")
+        f5 = QFormLayout(g5)
+        self.pose_video = QCheckBox("Crea il video annotato (scheletro, angoli, numero di frame) come Sports2D")
+        self.pose_video.setChecked(s.pose_annotated_video)
+        f5.addRow("", self.pose_video)
+        self.s2d_py = QLineEdit(s.sports2d_python)
+        from ...engines.sports2d_ext import env_dir
+        self.s2d_py.setPlaceholderText(f"automatico ({env_dir()})")
+        row = QHBoxLayout()
+        row.addWidget(self.s2d_py, 1)
+        bb = QPushButton("…")
+        bb.setMaximumWidth(36)
+        bb.clicked.connect(lambda: self._browse(self.s2d_py, False))
+        row.addWidget(bb)
+        f5.addRow("Python con Sports2D", row)
+        self.s2d_h = QDoubleSpinBox()
+        self.s2d_h.setRange(0.0, 2.5)
+        self.s2d_h.setDecimals(2)
+        self.s2d_h.setSingleStep(0.01)
+        self.s2d_h.setSpecialValueText("non indicata (nessuna conversione in metri)")
+        self.s2d_h.setValue(s.sports2d_person_height_m)
+        self.s2d_h.setToolTip("Statura nota della prima persona, in metri: Sports2D la usa per convertire i pixel in "
+                              "metri. Lasciare a 0 se non è documentata: una statura presunta altera ogni misura.")
+        f5.addRow("Statura di riferimento (m)", self.s2d_h)
+        self.s2d_ik = QCheckBox("Cinematica inversa OpenSim tramite Pose2Sim (richiede la statura)")
+        self.s2d_ik.setChecked(s.sports2d_do_ik)
+        f5.addRow("", self.s2d_ik)
+        self.root.addWidget(g5)
         b = QPushButton("Salva impostazioni")
         b.setObjectName("Primary")
         b.clicked.connect(self._save)
@@ -206,6 +234,10 @@ class SettingsPage(Page):
         s.operator, s.ui_mode, s.strict_forensic = self.op.text().strip(), self.mode.currentText(), self.strict.isChecked()
         s.cases_dir, s.exiftool_path, s.ffprobe_path = self.cases.text().strip(), self.exif.text().strip(), self.ffp.text().strip()
         s.tool_timeout_s = self.timeout.value()
+        s.pose_annotated_video = self.pose_video.isChecked()
+        s.sports2d_python = self.s2d_py.text().strip()
+        s.sports2d_person_height_m = round(self.s2d_h.value(), 2)
+        s.sports2d_do_ik = self.s2d_ik.isChecked()
         new_theme = self.theme.currentData()
         theme_changed = new_theme != s.ui_theme
         s.ui_theme = new_theme

@@ -2,6 +2,18 @@
 
 ## 1.3.0 (in corso)
 
+- Persone e movimento: video annotato come Sports2D (scheletro, angoli sulle articolazioni, numero di frame e tempo
+  su ogni fotogramma), attivo di default; lettore integrato frame per frame con grafico degli angoli sincronizzato e
+  discontinuità evidenziate; grafici PNG degli angoli per persona con SHA-256.
+- Nuovo modulo "sports2d": Sports2D e Pose2Sim originali (D. Pagnon) eseguiti in un ambiente Python separato su una
+  copia verificata del reperto; comando, versioni, log, hash di ogni file prodotto e dei modelli RTMLib registrati.
+  Installazione con tools/install_sports2d.py (eseguito anche dalla build).
+- Nuova pagina "Tutti i dati rinvenuti": anomalie in alto, poi ogni dato estratto (anche senza anomalie), con
+  ricerca ed esportazione JSON registrata nel registro del caso.
+- Profilo "Completa" con stima della posa e Sports2D; ExifTool estrae anche i metadati incorporati nei video (-ee3).
+- Corretto: la rianalisi dalla pagina Persone e movimento eseguiva solo 3 moduli e cancellava dalle altre pagine i
+  dati dell'analisi precedente.
+- Build: impronte dei modelli della posa fissate automaticamente se le due sorgenti coincidono; modelli inclusi.
 - Carica e analizza: video (MP4, MOV, 3GP, AVI, MKV, WebM, MPEG-PS/TS) e audio sono acquisiti con il filtro
   predefinito, che ora esclude solo i file non multimediali (sempre sui magic bytes). Selettore file con filtri
   Immagini/Video/Audio, colonna "Tipo" nell'elenco e suggerimento del profilo "Persone e movimento" per i video.

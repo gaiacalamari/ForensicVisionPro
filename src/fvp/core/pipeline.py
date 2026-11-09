@@ -25,14 +25,15 @@ IMAGE_FORMATS = {"jpeg", "png", "gif", "tiff", "bmp", "webp", "heif", "avif"}
 VIDEO_FORMATS = {"mp4", "mov", "3gp", "avi", "mkv", "webm", "mpeg_ps", "mpeg_ts", "m2ts"}
 AUDIO_FORMATS = {"wav", "mp3", "flac", "ogg", "aac"}
 ALL_MODULES = ["integrity", "signature", "structure", "metadata", "timestamps", "device", "case_context", "image", "jpeg_advanced", "median",
-               "copymove", "stego", "stegointel", "hidden_text", "quality", "prnu", "video", "pose", "carving_scan"]
+               "copymove", "stego", "stegointel", "hidden_text", "quality", "prnu", "video", "pose", "sports2d", "carving_scan"]
 ARTIFACT_LABELS = {
     "ela": "Error Level Analysis (q90)", "ela_multi": "ELA multi-qualità (composita)", "ghost": "JPEG ghost",
     "noise": "Residuo di rumore", "median": "Stabilità sotto filtro mediano", "copymove": "Copy-move (overlay)",
     "lsb": "Piani LSB (R, G, B)", "faces": "Volti rilevati", "prnu_local": "Correlazione locale PRNU",
     "faint": "Contrasto esaltato (testo quasi invisibile)",
     "pose": "Posa delle persone (scheletro)", "pose_motion": "Velocità tra frame (discontinuità)",
-    "pose_jumps": "Salti tra frame (prima / dopo)",
+    "pose_jumps": "Salti tra frame (prima / dopo)", "pose_angles": "Angoli nel tempo (grafici)",
+    "sports2d_angles": "Sports2D originale: grafico angoli",
 }
 
 
@@ -117,7 +118,8 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
     if "metadata" in modules:
         try:
             step(0.3, "Estrazione dei metadati")
-            meta = metadata.extract(wp, settings.exiftool_path, settings.tool_timeout_s)
+            meta = metadata.extract(wp, settings.exiftool_path, settings.tool_timeout_s,
+                                    embedded=fmt in VIDEO_FORMATS)
             results["metadata"] = meta
             findings += metadata.analyze(meta, png_text)
             executed.add(Category.METADATA)
@@ -366,6 +368,31 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         except Exception as e:  # noqa: BLE001
             findings.append(_fail("pose", Category.HUMAN_POSE, e))
 
+    if "sports2d" in modules and fmt in VIDEO_FORMATS:
+        from ..engines import sports2d_ext
+        try:
+            step(0.90, "Sports2D / Pose2Sim originali")
+
+            def sub2(f: float, msg: str) -> None:
+                step(0.90 + 0.01 * f, msg)
+            sres, sfs = sports2d_ext.run(wp, art / "sports2d", settings, progress=sub2, cancel=cancel,
+                                         expected_sha256=pre.get("sha256", ""))
+            results["artifacts"].update(sres.pop("artifacts", {}))
+            results["sports2d"] = sres
+            executed.add(Category.HUMAN_POSE)
+            findings.extend(sfs)
+            results["executed"].append("sports2d")
+        except Cancelled:
+            raise
+        except sports2d_ext.Sports2DUnavailable as e:
+            findings.append(Finding(Category.HUMAN_POSE, Level.INFO, "Sports2D / Pose2Sim originali non installati",
+                                    f"{e}. L'analisi del movimento di Forensic Vision Pro (modulo Persone e "
+                                    "movimento) è indipendente e non ne risente.", "—", "sports2d",
+                                    limitations="Per affiancare i programmi originali: python tools/install_sports2d.py "
+                                                "(vedi manuale, 'Sports2D e Pose2Sim originali').", confidence="n/a"))
+        except Exception as e:  # noqa: BLE001
+            findings.append(_fail("sports2d", Category.HUMAN_POSE, e))
+
     if "carving_scan" in modules:
         try:
             step(0.91, "Scansione delle firme incorporate")
@@ -411,6 +438,12 @@ def analyze_exhibit(case: Case, ex_id: str, operator: str, settings: Settings | 
         tools.update({"pillow": PIL.__version__, "numpy": numpy.__version__, "opencv": cv2.__version__})
     except ImportError:
         pass
+    if "sports2d" in results:
+        for k, v in results["sports2d"].get("versions", {}).items():
+            if v:
+                tools[f"sports2d_env_{k}"] = v
+        for m in results["sports2d"].get("models_cache", []):
+            tools[f"sports2d_model_{m['file']}"] = f"sha256:{m['sha256']}"
     if "pose" in results:
         eng = results["pose"].get("engine", {})
         tools["onnxruntime"] = eng.get("runtime", "")

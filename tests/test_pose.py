@@ -199,7 +199,7 @@ def test_frame_limit_reported(tmp_path):
     v = make_video(tmp_path / "long.avi", n=50)
 
     class S:
-        pose_max_frames, pose_frame_step, pose_det_every, pose_save_video = 20, 1, 4, False
+        pose_max_frames, pose_frame_step, pose_det_every, pose_annotated_video = 20, 1, 4, False
     res, fs = P.analyze(v, "video", tmp_path / "out", settings=S(), estimator=FakeEstimator())
     assert res["frames"]["analyzed"] == 20 and res["frames"]["limited"]
     assert any(x.title.startswith("Analisi della posa limitata") for x in fs)

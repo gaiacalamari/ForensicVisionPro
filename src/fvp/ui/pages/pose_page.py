@@ -3,17 +3,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QSplitter,
+                               QTabWidget, QVBoxLayout, QWidget)
 
 from ...core.findings import Category
-from ...engines.pose import ANGLE_LABELS_IT
+from ...engines.pose import ANGLE_LABELS_IT, ANGLE_NAMES, read_mot
+from ..theme import C
 from ..widgets.common import Page, fill_table, link_findings, make_table, not_implemented
 from ..widgets.findings_view import FindingsView
 from ..widgets.imageviews import SyncGroup
+from ..widgets.motion import AngleChart, VideoPlayer
 
-POSE_ARTS = ("pose", "pose_jumps", "pose_motion")
+POSE_ARTS = ("pose", "pose_angles", "pose_jumps", "pose_motion", "sports2d_angles")
+SRC_FVP, SRC_S2D = "fvp", "sports2d"
 
 
 class PosePage(Page):
@@ -43,6 +47,8 @@ class PosePage(Page):
         self.root.addLayout(bar)
 
         self.tabs = QTabWidget()
+        self.anim = self._build_animation()
+        self.s2d = self._build_sports2d()
         self.persons = make_table(["Persona", "Frame", "Da (s)", "A (s)", "Copertura", "Altezza (px)", "Confidenza",
                                    "Lato", "Cadenza (passi/min)"])
         self.angles = make_table(["Persona", "Angolo", "Min (°)", "Max (°)", "Media (°)", "Campioni"])
@@ -67,6 +73,7 @@ class PosePage(Page):
         self.engine = make_table(["Proprietà", "Valore"])
         self.fv = FindingsView({Category.HUMAN_POSE})
         link_findings(self.fv, state)
+        self.tabs.addTab(self.anim, "Video e angoli")
         self.tabs.addTab(self.fv, "Risultati")
         self.tabs.addTab(imgs, "Immagini")
         self.tabs.addTab(self.trans, "Discontinuità")
@@ -74,6 +81,7 @@ class PosePage(Page):
         self.tabs.addTab(self.angles, "Angoli")
         self.tabs.addTab(self.exports, "Esportazioni")
         self.tabs.addTab(self.engine, "Modelli e parametri")
+        self.tabs.addTab(self.s2d, "Sports2D / Pose2Sim originali")
         self.root.addWidget(self.tabs, 1)
         self._arts: dict[str, str] = {}
         self._pending = ""
@@ -91,13 +99,21 @@ class PosePage(Page):
         self.fv.hide_info = self.state.settings.ui_mode == "Basic"
         self.fv.set_findings(an["findings"] if an else [])
         self.run_btn.setEnabled(bool(self.state.case and self.state.exhibit_id) and not self.state.busy)
+        self._refresh_animation(an)
+        self._refresh_sports2d(an)
         if not pr:
             for t in (self.persons, self.angles, self.trans, self.exports, self.engine):
                 t.setRowCount(0)
             self.art_combo.clear()
             self.view.set_image(None)
             self.open_btn.setEnabled(False)
-            self.status.setText("Nessuna stima della posa per il reperto selezionato." if self.state.exhibit_id else "")
+            msg = "Nessuna stima della posa per il reperto selezionato."
+            if an and any(f.title == "Stima della posa non disponibile" for f in an["findings"]):
+                msg = ("Stima della posa non disponibile: i modelli non sono installati (vedi la scheda Risultati e "
+                       "il manuale, 'Installare i modelli per Persone e movimento').")
+            elif an and "pose" not in an.get("modules", []):
+                msg += " Il modulo non era tra quelli eseguiti: premi 'Analizza persone e movimento'."
+            self.status.setText(msg if self.state.exhibit_id else "")
             return
         fr = pr.get("frames", {})
         persons = pr.get("persons", [])
@@ -166,6 +182,212 @@ class PosePage(Page):
         if not (self.state.case and self.state.exhibit_id):
             return self.error("Nessun reperto selezionato.")
         from ...core.pipeline import analyze_exhibit
+        self._analyze({"pose"})
+
+    def _analyze(self, extra: set[str]) -> None:
+        """Rianalizza conservando i moduli dell'analisi precedente: così le altre pagine non perdono i loro dati."""
+        from ...core.pipeline import analyze_exhibit
         case, ex, op, s = self.state.case, self.state.exhibit_id, self.state.operator, self.state.settings
-        self.state.run(lambda p, c: analyze_exhibit(case, ex, op, s, ["integrity", "signature", "pose"], p, c),
+        an = self.state.last_analysis()
+        mods = sorted(set((an or {}).get("modules", [])) | {"integrity", "signature"} | extra)
+        mods.remove("integrity")
+        mods = ["integrity"] + mods
+        self.state.run(lambda p, c: analyze_exhibit(case, ex, op, s, mods, p, c),
                        lambda _r: self.state.analysis_changed.emit(), self.error)
+
+    # ---------------------------------------------------------------- animazione (video + angoli)
+    def _build_animation(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Fonte"))
+        self.src = QComboBox()
+        self.src.currentIndexChanged.connect(self._load_source)
+        row.addWidget(self.src)
+        row.addWidget(QLabel("Persona"))
+        self.person = QComboBox()
+        self.person.currentIndexChanged.connect(self._load_person)
+        row.addWidget(self.person)
+        self.anim_info = QLabel()
+        self.anim_info.setObjectName("Muted")
+        self.anim_info.setWordWrap(True)
+        row.addWidget(self.anim_info, 1)
+        lay.addLayout(row)
+        split = QSplitter(Qt.Orientation.Vertical)
+        self.player = VideoPlayer()
+        split.addWidget(self.player)
+        bottom = QWidget()
+        bl = QHBoxLayout(bottom)
+        bl.setContentsMargins(0, 0, 0, 0)
+        self.angle_list = QListWidget()
+        self.angle_list.setMaximumWidth(220)
+        self.angle_list.itemChanged.connect(self._angles_changed)
+        bl.addWidget(self.angle_list)
+        self.chart = AngleChart()
+        bl.addWidget(self.chart, 1)
+        split.addWidget(bottom)
+        split.setStretchFactor(0, 3)
+        split.setStretchFactor(1, 2)
+        lay.addWidget(split, 1)
+        self.player.position_changed.connect(self.chart.set_cursor)
+        self.chart.seek.connect(self.player.seek_time)
+        self._sources: dict[str, dict] = {}
+        return w
+
+    def _refresh_animation(self, an: dict | None) -> None:
+        r = (an or {}).get("results", {})
+        srcs: dict[str, dict] = {}
+        pr = r.get("pose")
+        if pr and pr.get("kind") == "video":
+            exp = pr.get("exports", {})
+            persons = [(f"P{p['track']}", exp[p["mot"]]["path"]) for p in pr.get("persons", [])
+                       if p.get("mot") in exp]
+            marks = [(e["time_s"], C["red"] if e["class"] == "scena" else C["orange"]) for e in pr.get("transitions", [])]
+            srcs[SRC_FVP] = {"label": "Forensic Vision Pro", "video": r.get("artifacts", {}).get("pose_video", ""),
+                             "persons": persons, "marks": marks}
+        sp = r.get("sports2d")
+        if sp and (sp.get("video") or sp.get("mot")):
+            persons = [(Path(m).stem.replace("reperto_Sports2D_", "").replace("reperto_", ""), m) for m in sp.get("mot", [])]
+            srcs[SRC_S2D] = {"label": f"Sports2D {sp.get('versions', {}).get('sports2d', '')} originale",
+                             "video": sp.get("video", ""), "persons": persons, "marks": []}
+        cur = self.src.currentData()
+        self._sources = srcs
+        self.src.blockSignals(True)
+        self.src.clear()
+        for k, v in srcs.items():
+            self.src.addItem(v["label"], k)
+        i = self.src.findData(cur)
+        self.src.setCurrentIndex(i if i >= 0 else 0)
+        self.src.blockSignals(False)
+        if not srcs:
+            self.player.load(None)
+            self.person.clear()
+            self.angle_list.clear()
+            self.chart.set_data([], {})
+            self.anim_info.setText("Il video annotato e i grafici degli angoli compaiono dopo l'analisi Persone e "
+                                   "movimento di un video." if self.state.exhibit_id else "")
+            return
+        self._load_source()
+
+    def _load_source(self) -> None:
+        src = self._sources.get(self.src.currentData())
+        if not src:
+            return
+        ok = self.player.load(src["video"])
+        self.chart.marks = src["marks"]
+        self.person.blockSignals(True)
+        self.person.clear()
+        for name, path in src["persons"]:
+            self.person.addItem(name, path)
+        self.person.blockSignals(False)
+        self.anim_info.setText(
+            ("" if ok else "Video annotato non presente: rianalizza il reperto per generarlo. ")
+            + "Scheletro, angoli e numero di frame sono impressi su ogni fotogramma; il cursore rosso del grafico "
+              "segue il video, un clic sul grafico sposta il video. Linee tratteggiate: discontinuità.")
+        self._load_person()
+
+    def _load_person(self) -> None:
+        path = self.person.currentData()
+        prev = {self.angle_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.angle_list.count())
+                if self.angle_list.item(i).checkState() == Qt.CheckState.Checked}
+        self.angle_list.blockSignals(True)
+        self.angle_list.clear()
+        if not path or not Path(path).is_file():
+            self.angle_list.blockSignals(False)
+            self.chart.set_data([], {})
+            return
+        try:
+            times, cols = read_mot(path)
+        except (OSError, ValueError) as e:
+            self.angle_list.blockSignals(False)
+            self.chart.set_data([], {}, title=f"{Path(path).name}: {e}")
+            return
+        order = [n for n in ANGLE_NAMES if n in cols] + [n for n in cols if n not in ANGLE_NAMES]
+        default = prev & set(order) or {n for n in ("right knee", "left knee", "right hip", "left hip") if n in cols}
+        if not default:
+            default = set(order[:4])
+        series = {}
+        for n in order:
+            label = ANGLE_LABELS_IT.get(n, n)
+            series[label] = cols[n]
+            it = QListWidgetItem(label)
+            it.setData(Qt.ItemDataRole.UserRole, n)
+            it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            it.setCheckState(Qt.CheckState.Checked if n in default else Qt.CheckState.Unchecked)
+            self.angle_list.addItem(it)
+        self.angle_list.blockSignals(False)
+        self.chart.set_data(times, series, [ANGLE_LABELS_IT.get(n, n) for n in order if n in default],
+                            f"{self.person.currentText()} · angoli nel tempo ({Path(path).name})")
+
+    def _angles_changed(self, _it=None) -> None:
+        self.chart.set_visible([self.angle_list.item(i).text() for i in range(self.angle_list.count())
+                                if self.angle_list.item(i).checkState() == Qt.CheckState.Checked])
+
+    # ---------------------------------------------------------------- Sports2D / Pose2Sim originali
+    def _build_sports2d(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 0)
+        info = QLabel("Esegue Sports2D e Pose2Sim originali (David Pagnon, BSD-3-Clause) su una copia verificata del "
+                      "reperto, in un ambiente Python separato. Video annotato, angoli (.mot) e traiettorie (.trc) "
+                      "prodotti dai programmi originali si vedono nella scheda 'Video e angoli' scegliendo la fonte "
+                      "Sports2D, affiancati a quelli di Forensic Vision Pro. Ogni file è registrato con SHA-256.")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+        row = QHBoxLayout()
+        self.s2d_check = QPushButton("Verifica ambiente")
+        self.s2d_check.clicked.connect(self._s2d_status)
+        self.s2d_run = QPushButton("Esegui Sports2D originale sul reperto")
+        self.s2d_run.setObjectName("Primary")
+        self.s2d_run.clicked.connect(lambda: self._analyze({"pose", "sports2d"}))
+        self.s2d_open = QPushButton("Apri la cartella dei risultati")
+        self.s2d_open.clicked.connect(self._s2d_open_dir)
+        for b in (self.s2d_check, self.s2d_run, self.s2d_open):
+            row.addWidget(b)
+        row.addStretch(1)
+        lay.addLayout(row)
+        self.s2d_status = QLabel("Ambiente non ancora verificato.")
+        self.s2d_status.setWordWrap(True)
+        self.s2d_status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lay.addWidget(self.s2d_status)
+        self.s2d_files = make_table(["File", "SHA-256", "Byte"])
+        lay.addWidget(self.s2d_files, 1)
+        self.s2d_meta = make_table(["Proprietà", "Valore"])
+        lay.addWidget(self.s2d_meta, 1)
+        return w
+
+    def _s2d_status(self) -> None:
+        from ...engines import sports2d_ext
+        st = sports2d_ext.status(self.state.settings)
+        if st["ok"]:
+            self.s2d_status.setText(f"Ambiente pronto: {st['detail']} · {st['python']}")
+        else:
+            self.s2d_status.setText(
+                f"Sports2D non disponibile: {st['detail']}.<br>Per installarlo (serve Internet e Python 3.11+): "
+                f"<code>py -3.12 tools\\install_sports2d.py</code> dalla cartella del progetto, oppure indica "
+                f"l'interprete in Impostazioni.")
+
+    def _refresh_sports2d(self, an: dict | None) -> None:
+        sp = (an or {}).get("results", {}).get("sports2d")
+        self.s2d_run.setEnabled(bool(self.state.case and self.state.exhibit_id) and not self.state.busy)
+        self.s2d_open.setEnabled(bool(sp))
+        if not sp:
+            self.s2d_files.setRowCount(0)
+            self.s2d_meta.setRowCount(0)
+            return
+        log = sp.get("log")
+        fill_table(self.s2d_files, [[e["rel"], e["sha256"], e["size"]] for e in sp.get("outputs", {}).values()]
+                   + ([[log["rel"], log["sha256"], log["size"]]] if log else []))
+        rows = [["Interprete", sp.get("python")], ["Codice di uscita", sp.get("returncode")],
+                ["Durata (s)", sp.get("duration_s")], ["Comando", " ".join(sp.get("command", []))],
+                ["Input (copia verificata)", sp.get("input", {}).get("sha256")]]
+        rows += [[f"versione {k}", v] for k, v in sp.get("versions", {}).items() if v]
+        rows += [[f"modello in cache: {m['file']}", m["sha256"]] for m in sp.get("models_cache", [])]
+        fill_table(self.s2d_meta, rows, sortable=False)
+
+    def _s2d_open_dir(self) -> None:
+        an = self.state.last_analysis()
+        sp = (an or {}).get("results", {}).get("sports2d")
+        if sp and sp.get("log"):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(sp["log"]["path"]).parent)))

@@ -42,14 +42,18 @@ def reliability(group: str) -> str:
     return "dichiarato"
 
 
-def extract(path: str | Path, exiftool_path: str = "", timeout: int = 120) -> dict:
-    """Restituisce {'tool': ..., 'tags': [{group, tag, value, reliability}], 'gps': {...}}."""
+def extract(path: str | Path, exiftool_path: str = "", timeout: int = 120, embedded: bool = False) -> dict:
+    """Restituisce {'tool': ..., 'tags': [{group, tag, value, reliability}], 'gps': {...}}.
+
+    embedded=True (video): anche i metadati incorporati nelle tracce (-ee3), come le tracce GPS, gli orari e i dati
+    dei sensori registrati campione per campione da smartphone, dashcam e action cam."""
     tool = get_tool("exiftool", exiftool_path)
     p = str(Path(path).resolve())
     if tool:
         try:
             raw = run([tool.path, "-j", "-a", "-u", "-G1", "-s", "-charset", "filename=utf8",
-                       "-api", "LargeFileSupport=1", p], timeout=timeout)
+                       "-api", "LargeFileSupport=1"] + (["-ee3"] if embedded else []) + [p],
+                      timeout=max(timeout, 600) if embedded else timeout)
             data = json.loads(raw.decode("utf-8", errors="replace"))[0]
             tags = []
             for k, v in data.items():
@@ -70,7 +74,9 @@ def extract(path: str | Path, exiftool_path: str = "", timeout: int = 120) -> di
                     gps = {"lat": lat, "lon": lon, "alt": g0.get("GPSAltitude")}
             except (ToolError, ValueError, IndexError):
                 pass
-            return {"tool": f"ExifTool {tool.version}", "tags": tags, "gps": gps}
+            return {"tool": f"ExifTool {tool.version}" + (" (-ee3: anche metadati incorporati nelle tracce)" if embedded
+                                                          else ""), "tags": tags, "gps": gps,
+                    "embedded_extracted": embedded}
         except (ToolError, ValueError, IndexError) as e:
             err = str(e)
     else:
