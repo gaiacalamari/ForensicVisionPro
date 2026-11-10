@@ -2,8 +2,6 @@
 
 Suite desktop per l'analisi forense di immagini e video (e, in parte, audio): acquisizione con hash verificati e catena di custodia, struttura dei file, metadati (compresi quelli incorporati nelle tracce video), analisi temporale, storia di compressione JPEG, copy-move, filtro mediano, PRNU, steganalisi e StegoIntelligence, persone e movimento (video annotato, angoli e discontinuità con la metodologia Sports2D; Sports2D e Pose2Sim originali con modello OpenSim), confronto tra immagini, Hex Viewer e report.
 
-**Versione 1.5.0** — interfaccia semplice a quattro passi, anche per chi non è del mestiere; analisi video dalla 1.4. Vedi il [CHANGELOG](CHANGELOG.md).
-
 ## Build per Windows (consigliata)
 
 Doppio clic su **`build_windows.bat`**. Serve solo una connessione a Internet: la build installa e verifica da sola tutto il necessario (Python 3.12, dipendenze, ExifTool, FFmpeg, Inno Setup), esegue i test e controlla l'eseguibile finito.
