@@ -58,7 +58,7 @@ class PosePage(Page):
         self.angles = make_table(["Persona", "Angolo", "Min (°)", "Max (°)", "Media (°)", "Campioni"])
         self.trans = make_table(["Frame", "Tempo (s)", "Classe", "Persone coinvolte", "Salto max (altezze)",
                                  "Velocità (alt./s)", "Scala", "Intervallo ×", "Cambio immagine ×", "Persone sostituite"])
-        imgs = QWidget()
+        imgs = self.imgs_tab = QWidget()
         il = QVBoxLayout(imgs)
         il.setContentsMargins(0, 0, 0, 0)
         row = QHBoxLayout()
@@ -173,8 +173,8 @@ class PosePage(Page):
         i = self.art_combo.findData(cur)
         self.art_combo.setCurrentIndex(i if i >= 0 else 0)
         self.art_combo.blockSignals(False)
-        if self._pending in self._arts:
-            self.tabs.setCurrentIndex(1)
+        if self._pending in self._arts:          # "Apri vista": la scheda delle immagini, con la mappa richiesta
+            self.tabs.setCurrentWidget(self.imgs_tab)
         self._pending = ""
         self.open_btn.setEnabled(bool(pr.get("exports")))
         self._show_art()

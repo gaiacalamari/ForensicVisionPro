@@ -255,7 +255,7 @@ def test_simple_view_switch_and_hidden_pages(simple_ui, tmp_path):
     app.processEvents()
     assert w.current_name() == "Carica e analizza"
     w.go_to("Image Forensics")                      # non è nel menu semplice ma i pulsanti "Apri vista" la aprono
-    assert w.current_name() == "Image Forensics" and w.stack.currentWidget() is w.pages["Image Forensics"]
+    assert w.current_name() == "Image Forensics" and w.current_page() is w.pages["Image Forensics"]
     w.toggle_mode()
     assert not w.simple and "Image Forensics" in w.items and w.current_name() == "Image Forensics"
     assert w.pages["Carica e analizza"].adv.isVisibleTo(w.pages["Carica e analizza"])
@@ -269,16 +269,20 @@ def test_simple_view_switch_and_hidden_pages(simple_ui, tmp_path):
 
 # ------------------------------------------------------------------ icona e riepilogo
 
-def test_program_icon_is_the_published_one(ui):
-    """L'icona è quella delle versioni pubblicate fino alla 1.4 e arriva a eseguibile, installer e finestra."""
-    import hashlib
+def test_program_icon(ui):
+    """Icona del programma (foto con lente d'ingrandimento) in tutti i formati, usata da eseguibile, installer e
+    finestra; è quella prodotta da tools/make_icon.py."""
+    from PIL import Image
 
     from fvp.ui.theme import icon_path
     app, st, w = ui
     root = Path(__file__).resolve().parents[1]
     p = icon_path()
-    assert p and hashlib.sha256(p.read_bytes()).hexdigest() == \
-        "168db1b8a7c62fa2ab92c1210185d145923f31c1be23fded42d9420f48b98392"
+    assert p and {16, 32, 48, 256} <= {sz[0] for sz in Image.open(p).info["sizes"]}
+    im = Image.open(p)
+    im.size = (256, 256)
+    im.load()
+    assert im.getpixel((5, 250))[3] == 0                         # angolo trasparente: niente quadrato bianco
     spec = (root / "packaging" / "fvp.spec").read_text(encoding="utf-8")
     assert "icon=str(ICON)" in spec and 'raise SystemExit(f"Icona mancante' in spec
     assert "SetupIconFile=..\\src\\fvp\\ui\\assets\\fvp.ico" in (root / "packaging" / "installer.iss").read_text(
@@ -312,3 +316,61 @@ def test_dashboard_details_on_the_right(ui, dataset):
     f = next(x for x in dp.fv.findings if x.level.value == "informativo")
     dp.fv.select(f.id)
     assert f.title in dp.fv.detail.toPlainText()
+
+
+def test_pages_scroll_instead_of_overlapping(simple_ui, dataset, tmp_path):
+    """Con la finestra piccola (portatile, Windows al 150%) le pagine scorrono: nessun widget viene compresso sotto
+    la sua dimensione minima, che è ciò che sovrapponeva i testi."""
+    from fvp.core import explain
+    from fvp.core.pipeline import analyze_exhibit
+    from fvp.ui.main_window import NAV
+    from fvp.ui.pages.load_page import PRESETS
+    app, st, w = simple_ui
+    w.show()
+    w.resize(980, 600)
+    cp = w.pages["Case Management"]
+    cp.cid.setText("S-SCROLL")
+    cp.ctitle.setText("finestra piccola")
+    cp._create()
+    ex = st.case.acquire(dataset / "double_compressed.jpg", "tester")
+    analyze_exhibit(st.case, ex.id, "tester", st.settings,
+                    ["integrity"] + PRESETS["Completa senza stima della posa (più rapida)"])
+    st.set_exhibit(ex.id)
+    st.analysis_changed.emit()
+    for simple in (True, False):
+        for name in NAV:
+            w.go_to(name)
+            for _ in range(5):
+                app.processEvents()
+            pg, m = w.pages[name], w.pages[name].minimumSizeHint()
+            assert w.scrolls[name].widget() is pg
+            assert pg.height() >= m.height() - 1 and pg.width() >= m.width() - 1, (name, pg.size(), m)
+        w.toggle_mode()
+    # "Apri vista" da Leggi i risultati porta alla pagina giusta anche se non è nel menu della vista semplice
+    f = explain.attention(st.last_analysis()["findings"])[0]
+    w.go_to("Dashboard")
+    w.pages["Dashboard"]._open(explain.related_page(f), explain.related_map(f) or "")
+    assert w.current_page() is w.pages[explain.related_page(f)]
+
+
+def test_pose_open_view_shows_images_tab(ui, tmp_path, monkeypatch):
+    """"Apri vista" su una discontinuità apre la scheda Immagini (prima apriva quella sbagliata)."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from test_pose import FakeEstimator, make_video
+
+    from fvp.core.pipeline import analyze_exhibit
+    from fvp.engines import pose_model as M
+    app, st, w = ui
+    monkeypatch.setattr(M, "load", lambda *a, **k: FakeEstimator())
+    cp = w.pages["Case Management"]
+    cp.cid.setText("POSE-VIEW")
+    cp.ctitle.setText("vista")
+    cp._create()
+    ex = st.case.acquire(make_video(tmp_path / "cut.avi", n=50, cut=25), "tester")
+    analyze_exhibit(st.case, ex.id, "tester", st.settings, ["integrity", "signature", "pose"])
+    st.set_exhibit(ex.id)
+    st.analysis_changed.emit()
+    w.pages["Dashboard"]._open("Human Pose", "pose_jumps")
+    pp = w.pages["Human Pose"]
+    assert pp.tabs.currentWidget() is pp.imgs_tab and pp.art_combo.currentData() == "pose_jumps"

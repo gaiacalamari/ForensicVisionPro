@@ -6,9 +6,9 @@ caso si passa al caricamento delle immagini. Tema chiaro predefinito, commutabil
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-                               QMainWindow, QMessageBox, QProgressBar, QPushButton, QStackedWidget, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
+                               QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea, QStackedWidget,
+                               QVBoxLayout, QWidget)
 
 from .. import APP_NAME, __version__
 from . import theme
@@ -85,6 +85,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{APP_NAME} {__version__}")
         self.setWindowIcon(theme.app_icon())
         self.resize(1440, 900)
+        self.setMinimumSize(980, 600)
         central = QWidget()
         h = QHBoxLayout(central)
         h.setContentsMargins(0, 0, 0, 0)
@@ -154,8 +155,20 @@ class MainWindow(QMainWindow):
             "Video Forensics": VideoForensicsPage(s), "Human Pose": PosePage(s),
             "Comparison Tool": ComparisonPage(s), "Hex Viewer": HexPage(s),
             "File Integrity": IntegrityPage(s), "Reports": ReportsPage(s), "Settings": SettingsPage(s)}
+        # Ogni pagina sta in un'area scorrevole: se la finestra è più piccola dello spazio che la pagina richiede
+        # (schermi da portatile, ridimensionamento di Windows al 125-150%) compare la barra di scorrimento invece di
+        # comprimere i widget e sovrapporre i testi.
+        self.scrolls: dict[str, QScrollArea] = {}
         for k in NAV:
-            self.stack.addWidget(self.pages[k])
+            sa = QScrollArea()
+            sa.setObjectName("PageScroll")
+            sa.setWidgetResizable(True)
+            sa.setFrameShape(QFrame.Shape.NoFrame)
+            sa.setWidget(self.pages[k])
+            sa.viewport().setAutoFillBackground(False)
+            self.pages[k].setAutoFillBackground(False)
+            self.scrolls[k] = sa
+            self.stack.addWidget(sa)
         rv.addWidget(self.stack, 1)
         h.addWidget(right, 1)
         self.setCentralWidget(central)
@@ -237,7 +250,7 @@ class MainWindow(QMainWindow):
             self.nav.setCurrentItem(None)
             self.nav.blockSignals(False)
             self._shown = name
-            self.stack.setCurrentWidget(self.pages[name])
+            self.stack.setCurrentWidget(self.scrolls[name])
             self.pages[name].refresh()
             return
         if it.flags() & Qt.ItemFlag.ItemIsEnabled:
@@ -253,8 +266,12 @@ class MainWindow(QMainWindow):
             return
         page = self.pages[name]
         self._shown = name
-        self.stack.setCurrentWidget(page)
+        self.stack.setCurrentWidget(self.scrolls[name])
         page.refresh()
+
+    def current_page(self):
+        sa = self.stack.currentWidget()
+        return sa.widget() if isinstance(sa, QScrollArea) else sa
 
     def current_name(self) -> str:
         return getattr(self, "_shown", "")
@@ -279,7 +296,7 @@ class MainWindow(QMainWindow):
         theme.apply(QApplication.instance(), s.ui_theme)
         self.state.theme_changed.emit()
         self._ctx()
-        self.stack.currentWidget().refresh()
+        self.current_page().refresh()
 
     # ---------- controllo di sistema ----------
     def start_selfcheck(self) -> None:
@@ -316,7 +333,7 @@ class MainWindow(QMainWindow):
         self.cancel.setVisible(b)
         if not b:
             self.status_msg.setText("Pronto")
-            self.stack.currentWidget().refresh()
+            self.current_page().refresh()
 
     def _ctx(self) -> None:
         c = self.state.case
@@ -350,7 +367,7 @@ class MainWindow(QMainWindow):
         ex = self.ex_combo.currentData()
         if ex and ex != self.state.exhibit_id:
             self.state.set_exhibit(ex)
-            self.stack.currentWidget().refresh()
+            self.current_page().refresh()
 
     def closeEvent(self, e) -> None:
         if self.state.busy:

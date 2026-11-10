@@ -2,10 +2,15 @@
 
 ## 1.5.1 — 2026-11-10
 
-- Icona del programma: la stessa delle versioni pubblicate fino alla 1.4 è ora un file del progetto
-  (`src/fvp/ui/assets/fvp.ico`) usato da eseguibile, finestra e barra delle applicazioni, installer e voce di
-  disinstallazione. Prima l'eseguibile la prendeva solo se esisteva `packaging/fvp.ico`, che non era nel repository;
-  ora la build si ferma se l'icona manca e un test ne verifica l'impronta.
+- Nuova icona del programma: una foto con davanti una lente d'ingrandimento. È un file del progetto
+  (`src/fvp/ui/assets/fvp.ico`, da 16 a 256 px), disegnato da `tools/make_icon.py` e usato da eseguibile, finestra
+  e barra delle applicazioni, installer e voce di disinstallazione. Prima l'eseguibile usava l'icona predefinita di
+  PyInstaller perché `packaging/fvp.ico` non era nel repository; ora la build si ferma se l'icona manca.
+- Corretto: testi sovrapposti o tagliati quando la finestra è più piccola dello spazio richiesto dalla pagina
+  (portatili, Windows con ridimensionamento al 125-150%), per esempio dopo «Apri vista». Ogni pagina ora scorre
+  invece di comprimere i suoi elementi; la finestra si può ridurre fino a 980×600.
+- Corretto: «Apri vista» su un risultato di Persone e movimento apriva la scheda sbagliata invece delle immagini.
+- Carica e analizza: le singole analisi su due colonne, leggibili anche su schermi stretti.
 - Leggi i risultati: i dettagli del risultato scelto (cosa significa, cosa fare, dati tecnici) sono nel riquadro
   «Dettagli» a destra, già aperto sul primo punto da verificare; «Esito per area» passa a sinistra, sotto il file.
 - Corretto: «Dettagli» non aggiornava il riquadro se il risultato era già selezionato.

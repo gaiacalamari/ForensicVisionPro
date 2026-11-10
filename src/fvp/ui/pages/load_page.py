@@ -117,7 +117,7 @@ class LoadPage(Page):
             c.setChecked(k in PRESETS["Completa (consigliata)"])
             c.toggled.connect(lambda _on: self._custom())
             self.checks[k] = c
-            grid.addWidget(c, i // 3, i % 3)
+            grid.addWidget(c, i // 2, i % 2)
         al.addLayout(grid)
         note = QLabel("Integrità (hash prima e dopo ogni analisi) è sempre eseguita. Ogni modulo si applica solo ai "
                       "formati pertinenti.")
