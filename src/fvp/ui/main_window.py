@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.state = state
         self.setWindowTitle(f"{APP_NAME} {__version__}")
+        self.setWindowIcon(theme.app_icon())
         self.resize(1440, 900)
         central = QWidget()
         h = QHBoxLayout(central)

@@ -16,6 +16,11 @@ if bin_dir.is_dir():
 # Dati di OpenCV (classificatori Haar per il rilevamento dei volti)
 datas += collect_data_files("cv2", includes=["data/*.xml"])
 datas += [(str(root / "docs"), "docs"), (str(root / "THIRD_PARTY_NOTICES.md"), ".")]
+# Icona del programma (la stessa delle versioni pubblicate fino alla 1.4): eseguibile, finestra, installer.
+ICON = root / "src" / "fvp" / "ui" / "assets" / "fvp.ico"
+if not ICON.is_file():
+    raise SystemExit(f"Icona mancante: {ICON}")
+datas += [(str(ICON), "fvp/ui/assets")]
 # Licenze di terze parti: raccolte da tools/collect_licenses.py (build_windows.ps1); in mancanza, i testi del repository
 lic = root / "build" / "third_party_licenses"
 datas += [(str(lic if lic.is_dir() else root / "licenses"), "licenses")]
@@ -38,5 +43,5 @@ a = Analysis([str(root / "src" / "fvp" / "__main__.py")], pathex=[str(root / "sr
              noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ForensicVisionPro", console=False,
-          icon=str(root / "packaging" / "fvp.ico") if (root / "packaging" / "fvp.ico").exists() else None)
+          icon=str(ICON))
 coll = COLLECT(exe, a.binaries, a.datas, name="ForensicVisionPro")

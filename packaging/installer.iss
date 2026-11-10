@@ -1,7 +1,7 @@
 ; Inno Setup 6: crea l'installer Windows dalla cartella generata da PyInstaller.
 ; Compilare con: iscc packaging\installer.iss
 #define AppName "Forensic Vision Pro"
-#define AppVersion "1.5.0"
+#define AppVersion "1.5.1"
 [Setup]
 AppId={{6F1C2A54-8C1E-4D7B-9A3F-2B7E5D1C0A91}
 AppName={#AppName}
@@ -15,6 +15,8 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
+SetupIconFile=..\src\fvp\ui\assets\fvp.ico
+UninstallDisplayIcon={app}\ForensicVisionPro.exe
 [Languages]
 Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 [Files]

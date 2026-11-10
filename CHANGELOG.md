@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.1 — 2026-11-10
+
+- Icona del programma: la stessa delle versioni pubblicate fino alla 1.4 è ora un file del progetto
+  (`src/fvp/ui/assets/fvp.ico`) usato da eseguibile, finestra e barra delle applicazioni, installer e voce di
+  disinstallazione. Prima l'eseguibile la prendeva solo se esisteva `packaging/fvp.ico`, che non era nel repository;
+  ora la build si ferma se l'icona manca e un test ne verifica l'impronta.
+- Leggi i risultati: i dettagli del risultato scelto (cosa significa, cosa fare, dati tecnici) sono nel riquadro
+  «Dettagli» a destra, già aperto sul primo punto da verificare; «Esito per area» passa a sinistra, sotto il file.
+- Corretto: «Dettagli» non aggiornava il riquadro se il risultato era già selezionato.
+
 ## 1.5.0 — 2026-11-10
 
 Interfaccia più semplice, pensata anche per chi non è del mestiere.

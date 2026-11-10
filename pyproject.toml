@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forensic-vision-pro"
-version = "1.5.0"
+version = "1.5.1"
 description = "Suite desktop di analisi forense per immagini e video"
 requires-python = ">=3.10"
 dependencies = [
@@ -20,6 +20,9 @@ forensic-vision-pro = "fvp.ui.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"fvp.ui" = ["assets/*.ico"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

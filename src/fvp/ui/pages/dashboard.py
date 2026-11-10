@@ -3,7 +3,7 @@ from __future__ import annotations
 import html
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget
 
 from ...core import explain
 from ..theme import C, LEVEL_COLORS, STATUS_COLORS
@@ -43,13 +43,19 @@ class DashboardPage(Page):
         for w in self.s.values():
             row.addWidget(w)
         self.root.addLayout(row)
-        mid = QHBoxLayout()
+        mid = QSplitter(Qt.Orientation.Horizontal)
+        mid.setChildrenCollapsible(False)
         g1 = QGroupBox("File selezionato")
         l1 = QVBoxLayout(g1)
         self.ex_label = QLabel()
         self.ex_label.setWordWrap(True)
         self.ex_label.setTextFormat(Qt.TextFormat.RichText)
         l1.addWidget(self.ex_label)
+        self.grid_box = QGroupBox("Esito per area")
+        lg = QVBoxLayout(self.grid_box)
+        self.grid = StatusGrid(columns=2)
+        lg.addWidget(self.grid)
+        l1.addWidget(self.grid_box)
         self.att_box = QGroupBox("Cosa merita attenzione")
         self.att_outer = QVBoxLayout(self.att_box)
         self.att_widget = QWidget()
@@ -59,25 +65,29 @@ class DashboardPage(Page):
         self.all_btn.setCheckable(True)
         self.all_btn.toggled.connect(self._toggle_all)
         l1.addWidget(self.all_btn, 0, Qt.AlignmentFlag.AlignLeft)
-        self.fv = FindingsView()
+        self.fv = FindingsView(detail_outside=True)
         self.fv.open_page.connect(self._open)
         l1.addWidget(self.fv, 1)
         l1.addStretch(0)
-        mid.addWidget(g1, 3)
-        side = QVBoxLayout()
-        g2 = QGroupBox("Esito per area")
+        mid.addWidget(g1)
+        sidew = QWidget()
+        side = QVBoxLayout(sidew)
+        side.setContentsMargins(0, 0, 0, 0)
+        sidew.setMinimumWidth(440)
+        g2 = QGroupBox("Dettagli")
         l2 = QVBoxLayout(g2)
-        self.grid = StatusGrid(columns=1)
-        l2.addWidget(self.grid)
-        l2.addStretch(1)
-        side.addWidget(g2, 1)
+        l2.addWidget(self.fv.detail)          # i dettagli del risultato scelto, sempre leggibili a destra
+        side.addWidget(g2, 3)
         g3 = self.activity_box = QGroupBox("Attività recenti del caso")
         l3 = QVBoxLayout(g3)
         self.activity = make_table(["Data e ora (UTC)", "Operatore", "Azione"])
         l3.addWidget(self.activity)
         side.addWidget(g3, 1)
-        mid.addLayout(side, 2)
-        self.root.addLayout(mid, 1)
+        mid.addWidget(sidew)
+        mid.setStretchFactor(0, 1)
+        mid.setStretchFactor(1, 1)
+        mid.setSizes([620, 560])
+        self.root.addWidget(mid, 1)
         state.case_changed.connect(self.refresh)
         state.exhibit_changed.connect(self.refresh)
         state.analysis_changed.connect(self.refresh)
@@ -122,8 +132,8 @@ class DashboardPage(Page):
             lab.setTextFormat(Qt.TextFormat.RichText)
             row.addWidget(lab, 1)
             b = QPushButton("Dettagli")
-            b.setToolTip("Mostra la spiegazione completa e i dati tecnici qui sotto")
-            b.clicked.connect(lambda _=False, i=f.id: (self.all_btn.setChecked(True), self.fv.select(i)))
+            b.setToolTip("Mostra la spiegazione completa e i dati tecnici nel riquadro Dettagli, a destra")
+            b.clicked.connect(lambda _=False, i=f.id: self.fv.select(i))
             row.addWidget(b, 0, Qt.AlignmentFlag.AlignTop)
             page = explain.related_page(f)
             if page:
@@ -170,3 +180,10 @@ class DashboardPage(Page):
         self.fv.hide_info = self.state.settings.ui_mode == "Basic"
         self.fv.set_findings(an["findings"] if an else [])
         self._toggle_all(self.all_btn.isChecked())
+        att = explain.attention(an["findings"]) if an else []
+        if att:                               # a destra subito il primo punto da verificare, non un riquadro vuoto
+            self.fv.select(att[0].id)
+        elif an:
+            self.fv.detail.setHtml(f"<p style='color:{C['muted']}'>Nessun elemento da segnalare nei controlli "
+                                   "eseguiti. Per leggere il dettaglio di un singolo controllo apri «Mostra tutti i "
+                                   "controlli eseguiti» e selezionalo.</p>")

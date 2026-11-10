@@ -22,10 +22,12 @@ class StatusGrid(QWidget):
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(18)
         self.grid.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.columns = columns
         self.labels: dict[Category, QLabel] = {}
         for i, cat in enumerate(Category):
             lab = QLabel()
             lab.setTextFormat(Qt.TextFormat.RichText)
+            lab.setWordWrap(True)
             self.grid.addWidget(lab, i // columns, i % columns)
             self.labels[cat] = lab
         self.set_status({})
@@ -39,12 +41,22 @@ class StatusGrid(QWidget):
                         f"{explain.CATEGORY_LABELS[cat]} <span style='color:{C['muted']}'>· "
                         f"{explain.STATUS_PLAIN[st].lower()}</span>")
             lab.setToolTip(f"{explain.CATEGORY_HELP[cat]}\n\n{explain.STATUS_HELP[st]}")
+        # le voci visibili si dispongono una dopo l'altra, senza buchi lasciati da quelle nascoste
+        for lab in self.labels.values():
+            self.grid.removeWidget(lab)
+        i = 0
+        for lab in self.labels.values():
+            if not lab.isHidden():
+                self.grid.addWidget(lab, i // self.columns, i % self.columns)
+                i += 1
 
 
 class FindingsView(QWidget):
     open_page = Signal(str, str)        # pagina dell'app, mappa collegata (può essere "")
 
-    def __init__(self, categories: set[Category] | None = None, parent=None):
+    def __init__(self, categories: set[Category] | None = None, parent=None, detail_outside: bool = False):
+        """detail_outside=True: il riquadro dei dettagli (self.detail) non è sotto la tabella, ma lo colloca la
+        pagina dove preferisce (il Riepilogo lo mette a destra)."""
         super().__init__(parent)
         self.categories = categories
         self.findings: list[Finding] = []
@@ -73,8 +85,9 @@ class FindingsView(QWidget):
         self.detail.setOpenLinks(False)
         self.detail.anchorClicked.connect(self._link)
         sp.addWidget(self.table)
-        sp.addWidget(self.detail)
-        sp.setSizes([300, 220])
+        if not detail_outside:
+            sp.addWidget(self.detail)
+            sp.setSizes([300, 220])
         lay.addWidget(sp, 1)
         self._vis: list[Finding] = []
 
@@ -107,6 +120,7 @@ class FindingsView(QWidget):
                     it.setToolTip(explain.plain_explanation(f))
                 self.table.setItem(r, c, it)
         self._vis = vis
+        self.table.clearSelection()
         self.table.resizeColumnsToContents()
         n_att = sum(explain.needs_attention(f) for f in vis)
         self.count.setText(f"{len(vis)} risultati · {n_att} da verificare")
@@ -116,17 +130,17 @@ class FindingsView(QWidget):
             + "</p>")
 
     def select(self, finding_id: str) -> None:
-        for r, f in enumerate(self._vis):
-            if f.id == finding_id:
-                self.table.selectRow(r)
-                self.table.scrollToItem(self.table.item(r, 0))
-                return
-        self.only.setChecked(False)
-        self.level.setCurrentIndex(0)
-        for r, f in enumerate(self._vis):
-            if f.id == finding_id:
-                self.table.selectRow(r)
-                return
+        """Seleziona un risultato e ne mostra i dettagli (anche se era già selezionato o la tabella è chiusa)."""
+        for attempt in (0, 1):
+            if attempt:
+                self.only.setChecked(False)
+                self.level.setCurrentIndex(0)
+            for r, f in enumerate(self._vis):
+                if f.id == finding_id:
+                    self.table.selectRow(r)
+                    self.table.scrollToItem(self.table.item(r, 0))
+                    self._show()
+                    return
 
     def _show(self) -> None:
         rows = self.table.selectionModel().selectedRows()

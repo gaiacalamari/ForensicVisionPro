@@ -34,6 +34,8 @@ def main() -> int:
     from .state import AppState
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    from .theme import app_icon
+    app.setWindowIcon(app_icon())
     app.setStyle("Fusion")
     settings = Settings.load()
     theme.apply(app, settings.ui_theme)

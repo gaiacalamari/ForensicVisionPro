@@ -265,3 +265,50 @@ def test_simple_view_switch_and_hidden_pages(simple_ui, tmp_path):
     assert w.simple and not pp.tabs.isTabVisible(pp.tabs.indexOf(pp.engine))
     from fvp.core.config import Settings
     assert Settings.load().ui_simple                # la scelta resta salvata
+
+
+# ------------------------------------------------------------------ icona e riepilogo
+
+def test_program_icon_is_the_published_one(ui):
+    """L'icona è quella delle versioni pubblicate fino alla 1.4 e arriva a eseguibile, installer e finestra."""
+    import hashlib
+
+    from fvp.ui.theme import icon_path
+    app, st, w = ui
+    root = Path(__file__).resolve().parents[1]
+    p = icon_path()
+    assert p and hashlib.sha256(p.read_bytes()).hexdigest() == \
+        "168db1b8a7c62fa2ab92c1210185d145923f31c1be23fded42d9420f48b98392"
+    spec = (root / "packaging" / "fvp.spec").read_text(encoding="utf-8")
+    assert "icon=str(ICON)" in spec and 'raise SystemExit(f"Icona mancante' in spec
+    assert "SetupIconFile=..\\src\\fvp\\ui\\assets\\fvp.ico" in (root / "packaging" / "installer.iss").read_text(
+        encoding="utf-8")
+    assert not w.windowIcon().isNull()
+
+
+def test_dashboard_details_on_the_right(ui, dataset):
+    import shutil
+    app, st, w = ui
+    cp = w.pages["Case Management"]
+    cp.cid.setText("UI-DET")
+    cp.ctitle.setText("dettagli")
+    cp._create()
+    from fvp.core.pipeline import analyze_exhibit
+    ex = st.case.acquire(dataset / "double_compressed.jpg", "tester")
+    from fvp.ui.pages.load_page import PRESETS
+    analyze_exhibit(st.case, ex.id, "tester", st.settings,
+                    ["integrity"] + PRESETS["Completa senza stima della posa (più rapida)"])
+    st.set_exhibit(ex.id)
+    st.analysis_changed.emit()
+    dp = w.pages["Dashboard"]
+    dp.set_simple(True)
+    dp.refresh()
+    assert not dp.fv.isVisibleTo(dp)                              # elenco chiuso…
+    assert dp.fv.detail.isVisibleTo(dp)                           # …ma i dettagli sono a destra
+    assert dp.fv.detail.parent() is not dp.fv                     # non sotto la tabella
+    from fvp.core import explain
+    first = explain.attention(st.last_analysis()["findings"])[0]
+    assert first.title in dp.fv.detail.toPlainText()             # primo punto da verificare già aperto
+    f = next(x for x in dp.fv.findings if x.level.value == "informativo")
+    dp.fv.select(f.id)
+    assert f.title in dp.fv.detail.toPlainText()

@@ -142,3 +142,20 @@ def apply(app, mode: str) -> None:
     set_mode(mode)
     app.setPalette(palette())
     app.setStyleSheet(qss())
+
+
+def icon_path():
+    """Icona del programma: accanto al pacchetto (sorgenti) o nella cartella dell'eseguibile (PyInstaller)."""
+    import sys
+    from pathlib import Path
+    for base in (Path(__file__).parent, Path(getattr(sys, "_MEIPASS", "")) / "fvp" / "ui"):
+        p = base / "assets" / "fvp.ico"
+        if p.is_file():
+            return p
+    return None
+
+
+def app_icon():
+    from PySide6.QtGui import QIcon
+    p = icon_path()
+    return QIcon(str(p)) if p else QIcon()
