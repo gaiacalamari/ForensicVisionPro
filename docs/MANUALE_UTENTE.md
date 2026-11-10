@@ -1,4 +1,19 @@
-# Manuale utente — Forensic Vision Pro 1.4
+# Manuale utente — Forensic Vision Pro 1.5
+
+## In breve: i quattro passi
+
+Il programma si apre nella **vista semplice**. Nel menu a sinistra ci sono i passi da seguire in ordine:
+
+1. **Apri un caso**: scrivi il tuo nome, un numero e un titolo, poi *Crea caso* (oppure apri un caso esistente).
+2. **Aggiungi i file**: trascina foto, video o cartelle nel riquadro, lascia il tipo di analisi *Completa* e premi
+   *Avvia l'analisi*.
+3. **Leggi i risultati**: in alto la sintesi in parole semplici, sotto ciò che merita attenzione. I colori indicano
+   dove guardare, non se un file è falso.
+4. **Crea il report**: il documento finale da consegnare.
+
+*Tutti i dati del file* mostra ogni informazione estratta; *Persone nei video* il video con lo scheletro, gli angoli
+e il modello 3D. In ogni pagina il pulsante **Come funziona** spiega metodo e limiti. Per tutte le analisi e gli
+strumenti tecnici: **Passa alla vista esperta**, in alto a destra.
 
 ## Primo avvio
 

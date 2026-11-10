@@ -21,6 +21,7 @@ class StatusGrid(QWidget):
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(18)
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.labels: dict[Category, QLabel] = {}
         for i, cat in enumerate(Category):
             lab = QLabel()
@@ -29,9 +30,11 @@ class StatusGrid(QWidget):
             self.labels[cat] = lab
         self.set_status({})
 
-    def set_status(self, status: dict[Category, Status]) -> None:
+    def set_status(self, status: dict[Category, Status], hide_unverified: bool = False) -> None:
+        """hide_unverified: in vista semplice non mostra le aree non esaminate (es. "Audio" per una foto)."""
         for cat, lab in self.labels.items():
             st = status.get(cat, Status.GREY)
+            lab.setVisible(not (hide_unverified and st == Status.GREY))
             lab.setText(f"<span style='color:{STATUS_COLORS[st.value]};font-size:13pt'>●</span>&nbsp; "
                         f"{explain.CATEGORY_LABELS[cat]} <span style='color:{C['muted']}'>· "
                         f"{explain.STATUS_PLAIN[st].lower()}</span>")

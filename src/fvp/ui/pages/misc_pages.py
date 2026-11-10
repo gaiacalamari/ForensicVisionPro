@@ -17,6 +17,7 @@ from ..widgets.common import Page, fill_table, make_table, not_implemented
 
 class ReportsPage(Page):
     title = "Report"
+    lead = "Crea il documento finale con tutti i risultati del caso."
     intro = ("Il report include, per ogni reperto, hash iniziali e finali, risultati automatici con metodo, "
              "evidenza, posizione, confidenza e limiti, le valutazioni dell'operatore in una sezione separata, la "
              "metodologia, le versioni degli strumenti e la catena di custodia. Ogni report generato è registrato "
@@ -68,6 +69,7 @@ class ReportsPage(Page):
 
 class SettingsPage(Page):
     title = "Impostazioni"
+    lead = "Nome dell'operatore, aspetto del programma e componenti installati."
     intro = "Le impostazioni sono salvate nella cartella utente e registrate nel caso quando cambiano."
 
     def __init__(self, state):
@@ -78,10 +80,12 @@ class SettingsPage(Page):
         self.op = QLineEdit(s.operator)
         f.addRow("Operatore", self.op)
         self.mode = QComboBox()
-        self.mode.addItems(["Basic", "Advanced", "Expert"])
-        self.mode.setCurrentText(s.ui_mode)
-        self.mode.setToolTip("Basic nasconde i risultati solo informativi nelle viste dei risultati.")
-        f.addRow("Modalità", self.mode)
+        for data, txt in (("Basic", "solo quelli da verificare"), ("Advanced", "tutti"), ("Expert", "tutti (esperto)")):
+            self.mode.addItem(txt, data)
+        self.mode.setCurrentIndex(max(0, self.mode.findData(s.ui_mode)))
+        self.mode.setToolTip("Quali risultati mostrare negli elenchi dei controlli. La vista semplice o esperta "
+                             "dell'intero programma si cambia con il pulsante in alto a destra.")
+        f.addRow("Risultati negli elenchi", self.mode)
         self.theme = QComboBox()
         self.theme.addItem("Chiaro", "light")
         self.theme.addItem("Scuro", "dark")
@@ -243,7 +247,7 @@ class SettingsPage(Page):
     def _save(self) -> None:
         s = self.state.settings
         old = dict(s.__dict__)
-        s.operator, s.ui_mode, s.strict_forensic = self.op.text().strip(), self.mode.currentText(), self.strict.isChecked()
+        s.operator, s.ui_mode, s.strict_forensic = self.op.text().strip(), self.mode.currentData(), self.strict.isChecked()
         s.cases_dir, s.exiftool_path, s.ffprobe_path = self.cases.text().strip(), self.exif.text().strip(), self.ffp.text().strip()
         s.tool_timeout_s = self.timeout.value()
         s.pose_annotated_video = self.pose_video.isChecked()

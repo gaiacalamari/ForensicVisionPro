@@ -27,6 +27,7 @@ class Stat(QWidget):
 
 class DashboardPage(Page):
     title = "Riepilogo"
+    lead = "Cosa ha trovato il programma, in parole semplici. I colori indicano dove guardare, non se un file è falso."
     intro = ("Cosa ha trovato il programma, in parole semplici: prima la sintesi del caso, poi il file selezionato. "
              "I colori indicano dove guardare, non se un file è autentico.")
 
@@ -54,17 +55,23 @@ class DashboardPage(Page):
         self.att_widget = QWidget()
         self.att_outer.addWidget(self.att_widget)
         l1.addWidget(self.att_box)
+        self.all_btn = QPushButton("Mostra tutti i controlli eseguiti ▸")
+        self.all_btn.setCheckable(True)
+        self.all_btn.toggled.connect(self._toggle_all)
+        l1.addWidget(self.all_btn, 0, Qt.AlignmentFlag.AlignLeft)
         self.fv = FindingsView()
         self.fv.open_page.connect(self._open)
         l1.addWidget(self.fv, 1)
+        l1.addStretch(0)
         mid.addWidget(g1, 3)
         side = QVBoxLayout()
         g2 = QGroupBox("Esito per area")
         l2 = QVBoxLayout(g2)
         self.grid = StatusGrid(columns=1)
         l2.addWidget(self.grid)
-        side.addWidget(g2)
-        g3 = QGroupBox("Attività recenti del caso")
+        l2.addStretch(1)
+        side.addWidget(g2, 1)
+        g3 = self.activity_box = QGroupBox("Attività recenti del caso")
         l3 = QVBoxLayout(g3)
         self.activity = make_table(["Data e ora (UTC)", "Operatore", "Azione"])
         l3.addWidget(self.activity)
@@ -74,6 +81,18 @@ class DashboardPage(Page):
         state.case_changed.connect(self.refresh)
         state.exhibit_changed.connect(self.refresh)
         state.analysis_changed.connect(self.refresh)
+
+    def apply_mode(self) -> None:
+        self.activity_box.setVisible(not self.simple)
+        self.all_btn.setChecked(not self.simple)
+        self._toggle_all(not self.simple)
+        self.refresh()
+
+    def _toggle_all(self, on: bool) -> None:
+        self.fv.setVisible(on)
+        n = len(self.fv.findings)
+        self.all_btn.setText(("Nascondi l'elenco dei controlli ▾" if on else
+                              f"Mostra tutti i controlli eseguiti{f' ({n})' if n else ''} ▸"))
 
     def _open(self, page: str, art: str) -> None:
         self.state.show_map.emit(art or "")
@@ -104,7 +123,7 @@ class DashboardPage(Page):
             row.addWidget(lab, 1)
             b = QPushButton("Dettagli")
             b.setToolTip("Mostra la spiegazione completa e i dati tecnici qui sotto")
-            b.clicked.connect(lambda _=False, i=f.id: self.fv.select(i))
+            b.clicked.connect(lambda _=False, i=f.id: (self.all_btn.setChecked(True), self.fv.select(i)))
             row.addWidget(b, 0, Qt.AlignmentFlag.AlignTop)
             page = explain.related_page(f)
             if page:
@@ -147,6 +166,7 @@ class DashboardPage(Page):
         else:
             self.ex_label.setText("Nessun file selezionato: caricane uno da «Carica e analizza».")
         self._fill_attention(an)
-        self.grid.set_status(status_for(an))
+        self.grid.set_status(status_for(an), hide_unverified=self.simple)
         self.fv.hide_info = self.state.settings.ui_mode == "Basic"
         self.fv.set_findings(an["findings"] if an else [])
+        self._toggle_all(self.all_btn.isChecked())

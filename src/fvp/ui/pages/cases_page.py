@@ -12,6 +12,7 @@ from ..widgets.common import Page, fill_table, make_table
 
 class CasesPage(Page):
     title = "Casi"
+    lead = "Crea un caso nuovo oppure apri un caso già esistente."
     intro = ("Primo passo obbligatorio: crea un nuovo caso o aprine uno esistente. Le altre sezioni si attivano "
              "quando un caso è aperto. Ogni caso è una cartella autonoma con database, copie di lavoro, mappe di "
              "analisi e report; il registro delle operazioni è a catena di hash, quindi alterazioni e cancellazioni "
@@ -31,7 +32,7 @@ class CasesPage(Page):
         self.cdesc = QPlainTextEdit()
         self.cdesc.setMaximumHeight(70)
         f.addRow("Operatore", self.cop)
-        f.addRow("Case ID", self.cid)
+        f.addRow("Numero del caso", self.cid)
         f.addRow("Titolo", self.ctitle)
         f.addRow("Descrizione", self.cdesc)
         bc = QPushButton("Crea caso")
@@ -41,7 +42,7 @@ class CasesPage(Page):
         ll.addWidget(g)
         g2 = QGroupBox("Casi esistenti")
         l2 = QVBoxLayout(g2)
-        self.cases = make_table(["Case ID", "Titolo", "Operatore", "Reperti", "Aperto (UTC)"])
+        self.cases = make_table(["Numero", "Titolo", "Operatore", "Reperti", "Aperto (UTC)"])
         self.cases.cellDoubleClicked.connect(self._open_row)
         l2.addWidget(self.cases)
         bo = QPushButton("Apri caso selezionato")
@@ -66,6 +67,9 @@ class CasesPage(Page):
         self.exh = make_table(["ID", "Etichetta", "File originale", "Dimensione", "Acquisito (UTC)", "SHA-256"])
         self.exh.itemSelectionChanged.connect(self._pick_ex)
         el.addWidget(self.exh, 1)
+        self.notes_w = QWidget()
+        nl = QVBoxLayout(self.notes_w)
+        nl.setContentsMargins(0, 0, 0, 0)
         nrow = QHBoxLayout()
         self.note = QLineEdit()
         self.note.setPlaceholderText("Valutazione dell'operatore sul reperto selezionato (finisce nel report)")
@@ -73,11 +77,12 @@ class CasesPage(Page):
         bn.clicked.connect(self._add_note)
         nrow.addWidget(self.note, 1)
         nrow.addWidget(bn)
-        el.addLayout(nrow)
+        nl.addLayout(nrow)
         self.notes = make_table(["UTC", "Operatore", "Valutazione"])
         self.notes.setMaximumHeight(150)
-        el.addWidget(self.notes)
-        tabs.addTab(exw, "Reperti")
+        nl.addWidget(self.notes)
+        el.addWidget(self.notes_w)
+        tabs.addTab(exw, "File del caso")
         cw = QWidget()
         cl = QVBoxLayout(cw)
         crow = QHBoxLayout()
@@ -94,7 +99,7 @@ class CasesPage(Page):
         cl.addWidget(self.chain)
         self.custody = make_table(["#", "UTC", "Operatore", "Azione", "Tipo", "Dettagli", "Hash voce"])
         cl.addWidget(self.custody, 1)
-        tabs.addTab(cw, "Chain of Custody e audit log")
+        tabs.addTab(cw, "Registro delle operazioni")
         rl.addWidget(tabs, 1)
         sp.addWidget(right)
         sp.setSizes([420, 800])
@@ -102,7 +107,12 @@ class CasesPage(Page):
         state.case_changed.connect(self.refresh)
         state.analysis_changed.connect(self.refresh)
 
+    def apply_mode(self) -> None:
+        # le valutazioni dell'operatore restano disponibili; in vista semplice compaiono solo con un caso aperto
+        self.notes_w.setVisible(not self.simple or self.state.case is not None)
+
     def refresh(self) -> None:
+        self.apply_mode()
         if not self.cop.text():
             self.cop.setText(self.state.settings.operator)
         self._cases = Case.list_cases(self.state.settings.cases_path)
@@ -151,7 +161,7 @@ class CasesPage(Page):
         if not self._set_operator():
             return
         if not self.cid.text().strip() or not self.ctitle.text().strip():
-            return self.error("Case ID e titolo sono obbligatori.")
+            return self.error("Inserisci il numero del caso e un titolo.")
         try:
             c = Case.create(self.state.settings.cases_path, self.cid.text().strip(), self.ctitle.text().strip(),
                             self.state.settings.operator, self.cdesc.toPlainText().strip())

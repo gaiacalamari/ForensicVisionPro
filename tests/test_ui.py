@@ -18,7 +18,7 @@ def ui(tmp_path, monkeypatch):
     from fvp.ui.main_window import MainWindow
     from fvp.ui.state import AppState
     app = QApplication.instance() or QApplication([])
-    s = Settings(operator="tester")
+    s = Settings(operator="tester", ui_simple=False)      # vista esperta: tutte le pagine nel menu
     theme.apply(app, s.ui_theme)
     st = AppState(s)
     w = MainWindow(st)
@@ -203,3 +203,65 @@ def test_credits_dialog(ui):
     txt = sp._credits_dialog.findChild(__import__("PySide6.QtWidgets", fromlist=["QTextBrowser"]).QTextBrowser).toPlainText()
     assert "Phil Harvey" in txt and "Sports2D" in txt
     sp._credits_dialog.close()
+
+
+# ------------------------------------------------------------------ vista semplice
+
+@pytest.fixture
+def simple_ui(tmp_path, monkeypatch):
+    monkeypatch.setenv("FVP_HOME", str(tmp_path))
+    from PySide6.QtWidgets import QApplication
+
+    from fvp.core.config import Settings
+    from fvp.ui.main_window import MainWindow
+    from fvp.ui.state import AppState
+    app = QApplication.instance() or QApplication([])
+    st = AppState(Settings(operator="tester"))
+    w = MainWindow(st)
+    yield app, st, w
+    w.close()
+
+
+def test_simple_view_is_default_and_minimal(simple_ui):
+    from fvp.core.config import Settings
+    from fvp.ui.main_window import SIMPLE_LABELS
+    app, st, w = simple_ui
+    assert Settings().ui_simple and w.simple
+    assert set(w.items) == set(SIMPLE_LABELS)                       # solo i passi essenziali nel menu
+    assert w.items["Case Management"].text().startswith("1")
+    assert w.mode_btn.text() == "Passa alla vista esperta" and not w.strict.isVisible()
+    for name, pg in w.pages.items():                                 # guida completa nascosta, frase breve visibile
+        assert not pg.help_box.isVisibleTo(pg)
+        if pg.intro:
+            assert pg.help_btn.isVisibleTo(pg)
+            pg.help_btn.setChecked(True)
+            assert pg.help_box.isVisibleTo(pg) and pg.help_box.text() == pg.intro
+            pg.help_btn.setChecked(False)
+        assert len(pg.lead) <= 140, name
+    lp = w.pages["Carica e analizza"]
+    assert not lp.adv.isVisibleTo(lp) and not lp.only_img.isVisibleTo(lp)
+    lp.adv_btn.setChecked(True)
+    assert lp.adv.isVisibleTo(lp)
+    dp = w.pages["Dashboard"]
+    assert not dp.fv.isVisibleTo(dp) and not dp.activity_box.isVisibleTo(dp)
+
+
+def test_simple_view_switch_and_hidden_pages(simple_ui, tmp_path):
+    app, st, w = simple_ui
+    cp = w.pages["Case Management"]
+    cp.cid.setText("S-1")
+    cp.ctitle.setText("semplice")
+    cp._create()
+    app.processEvents()
+    assert w.current_name() == "Carica e analizza"
+    w.go_to("Image Forensics")                      # non è nel menu semplice ma i pulsanti "Apri vista" la aprono
+    assert w.current_name() == "Image Forensics" and w.stack.currentWidget() is w.pages["Image Forensics"]
+    w.toggle_mode()
+    assert not w.simple and "Image Forensics" in w.items and w.current_name() == "Image Forensics"
+    assert w.pages["Carica e analizza"].adv.isVisibleTo(w.pages["Carica e analizza"])
+    pp = w.pages["Human Pose"]
+    assert pp.tabs.isTabVisible(pp.tabs.indexOf(pp.engine))
+    w.toggle_mode()
+    assert w.simple and not pp.tabs.isTabVisible(pp.tabs.indexOf(pp.engine))
+    from fvp.core.config import Settings
+    assert Settings.load().ui_simple                # la scelta resta salvata

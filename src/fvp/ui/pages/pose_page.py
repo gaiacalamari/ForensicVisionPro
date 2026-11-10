@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QListWidget, QLis
 from ...core.findings import Category
 from ...engines.pose import ANGLE_LABELS_IT, ANGLE_NAMES, read_mot
 from ..theme import C
-from ..widgets.common import Page, fill_table, link_findings, make_table, not_implemented
+from ..widgets.common import Page, fill_table, link_findings, make_table
 from ..widgets.findings_view import FindingsView
 from ..widgets.imageviews import SyncGroup
 from ..widgets.motion import AngleChart, VideoPlayer
@@ -23,23 +23,26 @@ IK_DEFAULT = ("knee angle r", "knee angle l", "hip flexion r", "hip flexion l")
 
 class PosePage(Page):
     title = "Persone e movimento"
+    lead = "Le persone nel video: scheletro, movimenti e salti sospetti tra un fotogramma e l'altro."
     intro = ("Stima della posa di ogni persona (26 punti del corpo), angoli articolari e segmentali con le "
              "definizioni di Sports2D, tracciamento tra i frame e ricerca di discontinuità: salti di posizione o di "
              "scala e persone sostituite da un frame al successivo, confrontati con i timestamp e con il cambiamento "
-             "complessivo dell'immagine. I keypoint sono in pixel: non sono misure del corpo in centimetri.")
+             "complessivo dell'immagine. I keypoint sono in pixel: non sono misure del corpo in centimetri.\n\n"
+             "Le discontinuità sono calcolate sui dati grezzi, prima di qualsiasi filtro. Gli angoli sono filtrati "
+             "(Butterworth 4° ordine, 6 Hz, fase zero) come in Sports2D. Senza calibrazione della camera non si "
+             "stimano statura né distanze; la cadenza è un dato descrittivo, non identificativo.\n\n"
+             "Video e angoli: scheletro, angoli e numero di frame sono impressi su ogni fotogramma; il cursore rosso "
+             "del grafico segue il video e un clic sul grafico sposta il video. Linee tratteggiate: discontinuità "
+             "(rosse di scena, arancio isolate).")
 
     def __init__(self, state):
         super().__init__(state)
-        self.root.addWidget(not_implemented(
-            "Le discontinuità sono calcolate sui dati grezzi, prima di qualsiasi filtro. Gli angoli sono filtrati "
-            "(Butterworth 4° ordine, 6 Hz, fase zero) come in Sports2D. Senza calibrazione della camera non si "
-            "stimano statura né distanze; la cadenza è un dato descrittivo, non identificativo."))
         bar = QHBoxLayout()
         self.run_btn = QPushButton("Analizza persone e movimento")
         self.run_btn.setObjectName("Primary")
         self.run_btn.clicked.connect(self._run)
         bar.addWidget(self.run_btn)
-        self.open_btn = QPushButton("Apri la cartella delle esportazioni")
+        self.open_btn = QPushButton("Apri la cartella dei file prodotti")
         self.open_btn.clicked.connect(self._open_dir)
         bar.addWidget(self.open_btn)
         self.status = QLabel()
@@ -75,20 +78,32 @@ class PosePage(Page):
         self.fv = FindingsView({Category.HUMAN_POSE})
         link_findings(self.fv, state)
         self.tabs.addTab(self.anim, "Video e angoli")
-        self.tabs.addTab(self.fv, "Risultati")
+        self.tabs.addTab(self.fv, "Cosa è stato trovato")
         self.tabs.addTab(imgs, "Immagini")
         self.tabs.addTab(self.trans, "Discontinuità")
         self.tabs.addTab(self.persons, "Persone")
         self.tabs.addTab(self.angles, "Angoli")
         self.tabs.addTab(self.exports, "Esportazioni")
         self.tabs.addTab(self.engine, "Modelli e parametri")
-        self.tabs.addTab(self.s2d, "Sports2D / Pose2Sim originali")
+        self.tabs.addTab(self.s2d, "Modello 3D (OpenSim)")
+        self.expert_tabs = [self.persons, self.angles, self.exports, self.engine]
         self.root.addWidget(self.tabs, 1)
         self._arts: dict[str, str] = {}
         self._pending = ""
         state.exhibit_changed.connect(self.refresh)
         state.analysis_changed.connect(self.refresh)
         state.show_map.connect(self._want_map)
+
+    def apply_mode(self) -> None:
+        for w in self.expert_tabs:
+            self.tabs.setTabVisible(self.tabs.indexOf(w), not self.simple)
+        self.open_btn.setVisible(not self.simple)
+        self.src_row_extra(not self.simple)
+
+    def src_row_extra(self, on: bool) -> None:
+        """Il selettore della fonte serve solo quando ci sono anche i risultati di Sports2D."""
+        self.src.setVisible(on or self.src.count() > 1)
+        self.src_lbl.setVisible(on or self.src.count() > 1)
 
     # ---------------------------------------------------------------- dati
     def _pose(self) -> tuple[dict | None, dict | None]:
@@ -110,7 +125,7 @@ class PosePage(Page):
             self.open_btn.setEnabled(False)
             msg = "Nessuna stima della posa per il reperto selezionato."
             if an and any(f.title == "Stima della posa non disponibile" for f in an["findings"]):
-                msg = ("Stima della posa non disponibile: i modelli non sono installati (vedi la scheda Risultati e "
+                msg = ("Stima della posa non disponibile: i modelli non sono installati (vedi la scheda «Cosa è stato trovato» e "
                        "il manuale, 'Installare i modelli per Persone e movimento').")
             elif an and "pose" not in an.get("modules", []):
                 msg += " Il modulo non era tra quelli eseguiti: premi 'Analizza persone e movimento'."
@@ -202,7 +217,8 @@ class PosePage(Page):
         lay = QVBoxLayout(w)
         lay.setContentsMargins(0, 0, 0, 0)
         row = QHBoxLayout()
-        row.addWidget(QLabel("Fonte"))
+        self.src_lbl = QLabel("Fonte")
+        row.addWidget(self.src_lbl)
         self.src = QComboBox()
         self.src.currentIndexChanged.connect(self._load_source)
         row.addWidget(self.src)
@@ -266,6 +282,7 @@ class PosePage(Page):
         i = self.src.findData(cur)
         self.src.setCurrentIndex(i if i >= 0 else 0)
         self.src.blockSignals(False)
+        self.src_row_extra(not self.simple)
         if not srcs:
             self.player.load(None)
             self.person.clear()
@@ -287,10 +304,10 @@ class PosePage(Page):
         for name, path in src["persons"]:
             self.person.addItem(name, path)
         self.person.blockSignals(False)
-        self.anim_info.setText(
-            ("" if ok else "Video annotato non presente: rianalizza il reperto per generarlo. ")
-            + "Scheletro, angoli e numero di frame sono impressi su ogni fotogramma; il cursore rosso del grafico "
-              "segue il video, un clic sul grafico sposta il video. Linee tratteggiate: discontinuità.")
+        self.anim_info.setText("" if ok else "Video annotato non presente: premi «Analizza persone e movimento».")
+        self.anim_info.setToolTip("Scheletro, angoli e numero di frame sono impressi su ogni fotogramma; il cursore "
+                                  "rosso del grafico segue il video, un clic sul grafico sposta il video. Linee "
+                                  "tratteggiate: discontinuità.")
         self._load_person()
 
     def _load_person(self) -> None:
@@ -414,7 +431,7 @@ class PosePage(Page):
                 + "<br>".join(html.escape(x) for x in tail) + "</code><br>Premi 'Esegui Sports2D originale sul "
                 "reperto' per ripetere l'analisi.")
         elif osm.get("requested"):
-            self.osim_info.setText("Modello OpenSim richiesto ma non prodotto: vedi la scheda Risultati e sports2d.log.")
+            self.osim_info.setText("Modello OpenSim richiesto ma non prodotto: vedi la scheda «Cosa è stato trovato» e sports2d.log.")
         else:
             self.osim_info.setText("")
         if not sp:

@@ -36,6 +36,7 @@ def _short(v) -> str:
 
 class AllDataPage(Page):
     title = "Tutti i dati rinvenuti"
+    lead = "Tutte le informazioni estratte dal file, con i punti da verificare in cima."
     intro = ("Tutto ciò che l'analisi ha estratto dal reperto selezionato, anche quando non emergono anomalie: in alto "
              "i punti di attenzione, poi metadati, date, stream, struttura, persone e movimento, hash e strumenti. "
              "Cerca per nome o valore; doppio clic su una riga per copiarne il valore.")

@@ -9,6 +9,7 @@ from ..widgets.common import Page, fill_table, make_table
 
 class IntegrityPage(Page):
     title = "Verifica hash"
+    lead = "Controlla che un file non sia cambiato, con la sua impronta digitale (hash)."
     intro = ("Calcolo di hash su file o cartelle, confronto con un valore atteso e verifica dei reperti del caso. "
              "Gli hash confermano che i byte non sono cambiati, non che il contenuto sia autentico.")
 

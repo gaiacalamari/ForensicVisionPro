@@ -550,7 +550,7 @@ def draw_angles(img: np.ndarray, k: np.ndarray, s: np.ndarray, label: str, colum
     x0 = 8 + column * int(190 * sc + 60)
     y = int(22 * sc + 14)
     _text(img, label, (x0, y), 0.6 * sc + 0.2, (255, 255, 255), th + 1)
-    for name in ANGLE_NAMES:
+    for name in JOINT_ANGLE_AT:        # solo gli angoli articolari: gli angoli dei segmenti sono nei grafici
         a = ang.get(name, float("nan"))
         if not np.isfinite(a):
             continue

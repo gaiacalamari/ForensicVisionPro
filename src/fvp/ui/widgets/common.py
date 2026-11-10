@@ -2,34 +2,74 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QMessageBox, QTableWidget, QTableWidgetItem,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QMessageBox, QPushButton, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout, QWidget)
 
 
 class Page(QWidget):
+    """Pagina con titolo, una riga di spiegazione e la guida completa nascosta dietro "Come funziona".
+
+    lead  = una frase semplice, sempre visibile (cosa si trova nella pagina);
+    intro = spiegazione completa (metodo, limiti, come leggere i risultati), mostrata solo a richiesta.
+    In vista semplice le pagine nascondono comandi e dettagli tecnici (apply_mode)."""
     title = ""
-    intro = ""      # cosa analizza, perché è utile, come leggere i risultati
+    lead = ""
+    intro = ""
 
     def __init__(self, state, parent=None):
         super().__init__(parent)
         self.state = state
+        self.simple = bool(getattr(state.settings, "ui_simple", True))
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(22, 16, 22, 16)
         self.root.setSpacing(10)
+        head = QHBoxLayout()
         t = QLabel(self.title)
         t.setObjectName("PageTitle")
-        self.root.addWidget(t)
-        if self.intro:
-            i = QLabel(self.intro)
+        head.addWidget(t)
+        head.addStretch(1)
+        self.help_btn = QPushButton("Come funziona")
+        self.help_btn.setObjectName("HelpButton")
+        self.help_btn.setCheckable(True)
+        self.help_btn.setVisible(bool(self.intro))
+        head.addWidget(self.help_btn)
+        self.root.addLayout(head)
+        lead = self.lead or first_sentence(self.intro)
+        if lead:
+            i = QLabel(lead)
             i.setObjectName("PageIntro")
             i.setWordWrap(True)
             self.root.addWidget(i)
+        self.help_box = QLabel(self.intro)
+        self.help_box.setObjectName("HelpBox")
+        self.help_box.setWordWrap(True)
+        self.help_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.help_box.hide()
+        self.root.addWidget(self.help_box)
+        self.help_btn.toggled.connect(self._toggle_help)
+
+    def _toggle_help(self, on: bool) -> None:
+        self.help_box.setVisible(on)
+        self.help_btn.setText("Nascondi la guida" if on else "Come funziona")
+
+    def set_simple(self, simple: bool) -> None:
+        self.simple = simple
+        self.apply_mode()
+
+    def apply_mode(self) -> None:
+        """Mostra o nasconde i controlli avanzati secondo la vista (semplice / esperta)."""
 
     def refresh(self) -> None:
         """Aggiorna la pagina quando diventa visibile o cambia il contesto."""
 
     def error(self, msg: str) -> None:
         QMessageBox.warning(self, self.title, msg)
+
+
+def first_sentence(text: str) -> str:
+    import re
+    m = re.search(r"[.!?](\s+)(?=[A-ZÈÀÉ'«])", text or "")
+    return (text[:m.start() + 1] if m else text or "").strip()
 
 
 def not_implemented(text: str) -> QLabel:

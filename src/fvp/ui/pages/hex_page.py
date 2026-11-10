@@ -15,6 +15,7 @@ from ..widgets.hexview import HexView
 
 class HexPage(Page):
     title = "Byte del file (Hex)"
+    lead = "Il contenuto grezzo del file, byte per byte (solo lettura)."
     intro = ("Contenuto binario in sola lettura: il file è mappato in memoria senza permessi di scrittura. "
              "Fai clic su un elemento della struttura per evidenziarne i byte; Maiusc+clic seleziona un intervallo.")
 

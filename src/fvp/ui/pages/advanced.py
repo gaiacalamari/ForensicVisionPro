@@ -34,6 +34,7 @@ STEGO_TOOLS = [
 
 class SteganalysisPage(Page):
     title = "Contenuti nascosti"
+    lead = "Messaggi, testi o file nascosti nell'immagine o nei suoi dati."
     intro = ("Cerca messaggi, file o testo nascosti: dentro i pixel o i campioni audio (steganografia), nei campi "
              "descrittivi del file, nei suoi byte e sotto forma di scritte quasi invisibili. Se qualcosa viene "
              "trovato e decodificato, appare qui sotto. Messaggi cifrati o protetti da password non sono leggibili.")
@@ -197,6 +198,7 @@ class SteganalysisPage(Page):
 
 class PrnuPage(Page):
     title = "Fotocamera di origine"
+    lead = "Verifica se una foto è stata scattata da una certa fotocamera."
     intro = ("Il PRNU è un rumore caratteristico di ogni sensore. Con almeno 5 immagini di riferimento dello stesso "
              "dispositivo (meglio 20 o più, di scene luminose e uniformi, non ridimensionate) si costruisce "
              "un'impronta; un'immagine con PCE superiore a 60 è compatibile con quel sensore. Le impronte valgono per "
@@ -293,6 +295,7 @@ class PrnuPage(Page):
 
 class ComparisonPage(Page):
     title = "Confronta immagini"
+    lead = "Confronta due immagini e mostra dove sono diverse."
     intro = ("Confronto tra due immagini: hash crittografici e percettivi, SSIM, PSNR, mappa delle differenze e "
              "relazione geometrica (ritaglio, scala, rotazione). Se le dimensioni differiscono, B viene allineata ad A "
              "con un'omografia o, in mancanza di corrispondenze, ridimensionata. 'Trova quasi-duplicati' confronta "

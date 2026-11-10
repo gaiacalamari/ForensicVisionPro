@@ -97,6 +97,11 @@ QMainWindow, QStackedWidget > QWidget {{ background:{c['base']}; }}
 #Stat {{ background:{c['panel']}; border:1px solid {c['rule']}; border-radius:4px; }}
 #StatValue {{ font-size:20pt; font-weight:600; }}
 #NotImpl {{ background:{c['panel']}; border:1px dashed {c['rule']}; border-radius:4px; padding:12px; color:{c['muted']}; }}
+#HelpBox {{ background:{c['panel']}; border:1px solid {c['rule']}; border-left:3px solid {c['accent']}; border-radius:4px; padding:10px 12px; }}
+#HelpButton {{ padding:3px 10px; }}
+#ModeButton {{ padding:4px 12px; font-weight:600; }}
+#Lead {{ font-size:11pt; }}
+#BigDrop {{ border:2px dashed {c['accent']}; border-radius:8px; padding:28px; font-size:12pt; color:{c['accent']}; background:{c['accent_soft']}; }}
 #Notice {{ background:{c['accent_soft']}; border:1px solid {c['accent']}; border-radius:4px; padding:10px; }}
 #DropZone {{ background:{c['panel']}; border:2px dashed {c['rule']}; border-radius:6px; padding:18px; color:{c['muted']}; }}
 #ImageView {{ background:{c['panel']}; border:1px solid {c['rule']}; }}

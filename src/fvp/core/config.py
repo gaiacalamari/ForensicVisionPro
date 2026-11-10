@@ -31,6 +31,7 @@ class Settings:
     tool_timeout_s: int = 120
     max_image_pixels: int = 250_000_000
     ui_mode: str = "Advanced"          # Basic | Advanced | Expert
+    ui_simple: bool = True             # vista semplice: solo i passi essenziali, dettagli tecnici a richiesta
     ui_theme: str = "light"            # light | dark
     # Persone e movimento (stima della posa, metodologia Sports2D)
     pose_det_model: str = ""           # vuoto = bin/ o <home>/models

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0 — 2026-11-10
+
+Interfaccia più semplice, pensata anche per chi non è del mestiere.
+
+- Nuova **vista semplice**, predefinita: il menu mostra i quattro passi numerati (1 Apri un caso, 2 Aggiungi i
+  file, 3 Leggi i risultati, 4 Crea il report) più «Tutti i dati del file» e «Persone nei video». Il pulsante in alto
+  a destra passa alla **vista esperta** con tutte le analisi e gli strumenti; la scelta resta salvata.
+- Ogni pagina mostra una sola frase in linguaggio semplice; la spiegazione completa (metodo, limiti, come leggere i
+  risultati) è dietro il pulsante «Come funziona».
+- Carica e analizza: area di trascinamento più grande, «Tipo di analisi» e pulsante «Avvia l'analisi»; le singole
+  analisi e le opzioni tecniche sono dietro «Scegli le singole analisi».
+- Riepilogo: in vista semplice mostra solo le aree effettivamente esaminate e ciò che merita attenzione; l'elenco
+  completo dei controlli si apre con un pulsante. Le attività recenti restano nella vista esperta.
+- Persone e movimento: in vista semplice cinque schede (video e angoli, cosa è stato trovato, immagini,
+  discontinuità, modello 3D OpenSim); i dettagli sul metodo sono nella guida della pagina. Sul video annotato
+  compaiono solo gli angoli articolari.
+- Casi: etichette in italiano («Numero del caso», «File del caso», «Registro delle operazioni»).
+- Impostazioni: «Risultati negli elenchi» al posto di Basic/Advanced/Expert.
+
 ## 1.4.1 — 2026-11-09
 
 - Corretto: Sports2D 0.8.x si interrompeva prima di salvare il video annotato e di eseguire la cinematica inversa

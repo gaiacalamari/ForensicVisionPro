@@ -20,6 +20,7 @@ REL = {"dichiarato": "Dichiarato nel file (modificabile)", "calcolato": "Calcola
 
 class MetadataPage(Page):
     title = "Metadati"
+    lead = "Le informazioni scritte nel file dalla fotocamera o dai programmi usati."
     intro = ("Tutti i metadati estratti, con la loro attendibilità. 'Dichiarato' significa scritto nel file da un "
              "dispositivo o software: può essere modificato e non si verifica da solo. I tempi del filesystem della "
              "copia di lavoro non descrivono l'originale (quelli dell'originale sono nella Timeline).")
@@ -112,6 +113,7 @@ class MetadataPage(Page):
 
 class TimelinePage(Page):
     title = "Date e orari"
+    lead = "Tutte le date e gli orari presenti nel file, in ordine."
     intro = ("Tutti i riferimenti temporali del reperto in ordine cronologico. Gli orari sono convertiti in UTC solo "
              "quando il fuso è dichiarato o previsto dalla specifica; gli altri restano in ora locale non "
              "determinata. I tempi del filesystem sono quelli dell'originale rilevati prima dell'acquisizione e non "

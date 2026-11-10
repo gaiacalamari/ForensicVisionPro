@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QVBoxLayout)
+                               QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget)
 
 from ...core.pipeline import AUDIO_FORMATS, IMAGE_FORMATS, VIDEO_FORMATS, analyze_exhibit
 from ...core.tasks import Cancelled
@@ -50,6 +50,7 @@ FILE_FILTER = (f"Immagini, video e audio ({IMAGE_GLOBS} {VIDEO_GLOBS} {AUDIO_GLO
 
 class LoadPage(Page):
     title = "Carica e analizza"
+    lead = "Aggiungi le foto, i video o gli audio da esaminare e premi «Avvia l'analisi»."
     intro = ("Aggiungi immagini, video o audio, oppure una cartella intera, al caso aperto. Ogni file diventa un reperto: "
              "viene copiato con hash verificati, la copia è resa di sola lettura e le analisi lavorano solo su di "
              "essa. Puoi anche trascinare file e cartelle in questa pagina.")
@@ -79,8 +80,8 @@ class LoadPage(Page):
         row.addStretch(1)
         row.addWidget(b3)
         self.root.addLayout(row)
-        self.drop = QLabel("Trascina qui immagini, video, audio o cartelle")
-        self.drop.setObjectName("DropZone")
+        self.drop = QLabel("Trascina qui foto, video, audio o cartelle\noppure usa «Aggiungi file…» qui sopra")
+        self.drop.setObjectName("BigDrop")
         self.drop.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.root.addWidget(self.drop)
         self.table = make_table(["File", "Tipo", "Dimensione", "Formato rilevato", "Stato"])
@@ -91,12 +92,24 @@ class LoadPage(Page):
         self.preset = QComboBox()
         self.preset.addItems(list(PRESETS))
         self.preset.currentTextChanged.connect(self._apply_preset)
-        top.addWidget(QLabel("Profilo"))
+        lab = QLabel("Tipo di analisi")
+        lab.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        top.addWidget(lab)
+        self.preset.setMinimumWidth(320)
         top.addWidget(self.preset)
         self.label = QLineEdit()
         self.label.setPlaceholderText("Descrizione facoltativa (es. 'Foto ricevute via WhatsApp'), applicata ai reperti")
         top.addWidget(self.label, 1)
+        top.addStretch(0)
+        self.adv_btn = QPushButton("Scegli le singole analisi ▸")
+        self.adv_btn.setCheckable(True)
+        self.adv_btn.toggled.connect(self._toggle_adv)
+        self.adv_btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        top.addWidget(self.adv_btn)
         gl.addLayout(top)
+        self.adv = QWidget()
+        al = QVBoxLayout(self.adv)
+        al.setContentsMargins(0, 0, 0, 0)
         grid = QGridLayout()
         self.checks = {}
         for i, (k, lbl) in enumerate(MODS):
@@ -105,14 +118,15 @@ class LoadPage(Page):
             c.toggled.connect(lambda _on: self._custom())
             self.checks[k] = c
             grid.addWidget(c, i // 3, i % 3)
-        gl.addLayout(grid)
+        al.addLayout(grid)
         note = QLabel("Integrità (hash prima e dopo ogni analisi) è sempre eseguita. Ogni modulo si applica solo ai "
                       "formati pertinenti.")
         note.setObjectName("Muted")
-        gl.addWidget(note)
+        al.addWidget(note)
+        gl.addWidget(self.adv)
         self.root.addWidget(g)
         row2 = QHBoxLayout()
-        self.start = QPushButton("Acquisisci e analizza")
+        self.start = QPushButton("Avvia l'analisi")
         self.start.setObjectName("Primary")
         self.start.clicked.connect(self._start)
         self.again = QPushButton("Rianalizza il reperto selezionato")
@@ -128,6 +142,17 @@ class LoadPage(Page):
         state.case_changed.connect(self.refresh)
         state.busy_changed.connect(lambda _b: self.refresh())
 
+    # ---------- vista ----------
+    def apply_mode(self) -> None:
+        for w in (self.recursive, self.only_img, self.label, self.again):
+            w.setVisible(not self.simple)
+        self.adv_btn.setChecked(not self.simple)
+        self._toggle_adv(not self.simple)
+
+    def _toggle_adv(self, on: bool) -> None:
+        self.adv.setVisible(on)
+        self.adv_btn.setText("Nascondi le singole analisi ▾" if on else "Scegli le singole analisi ▸")
+
     # ---------- elenco ----------
     def refresh(self) -> None:
         c = self.state.case
@@ -135,7 +160,7 @@ class LoadPage(Page):
                               f"<b>{self.state.operator}</b> · {len(c.exhibits())} reperti già acquisiti" if c else
                               "Nessun caso aperto: crea o apri un caso nella sezione Casi.")
         pending = [q for q in self.queue if q["status"] == "in attesa"]
-        self.start.setText(f"Acquisisci e analizza {len(pending)} file" if pending else "Acquisisci e analizza")
+        self.start.setText(f"▶  Avvia l'analisi di {len(pending)} file" if pending else "▶  Avvia l'analisi")
         self.start.setEnabled(bool(c and pending) and not self.state.busy)
         self.again.setEnabled(bool(c and self.state.exhibit_id) and not self.state.busy)
         fill_table(self.table, [[q["path"], q.get("kind", ""), f"{q['size']:,}", q["format"], q["status"]]

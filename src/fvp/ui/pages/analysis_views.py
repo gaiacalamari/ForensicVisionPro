@@ -16,6 +16,7 @@ from ..widgets.imageviews import SyncGroup
 
 class ImageForensicsPage(Page):
     title = "Analisi visiva"
+    lead = "L'immagine accanto alle mappe che evidenziano le zone da controllare."
     intro = ("Immagine e due mappe di analisi a scelta, affiancate, con zoom (rotella) e scorrimento sincronizzati. "
              "Ogni mappa evidenzia regioni da confrontare con aree di contenuto simile: nessuna mappa è da sola una "
              "prova di alterazione. Il significato di ciascuna è nei risultati di Manipulation Detection.")
@@ -176,6 +177,7 @@ class FindingsPage(Page):
 
 class ManipulationPage(FindingsPage):
     title = "Possibili modifiche"
+    lead = "Segni di possibili modifiche all'immagine o al file."
     intro = ("Risultati dei test sulla struttura del file e sull'immagine. Un indicatore sospetto è compatibile con "
              "una modifica ma non la dimostra: va letto insieme agli altri e verificato visivamente.")
     categories = {Category.IMAGE_MANIPULATION, Category.FILE_STRUCTURE, Category.INTEGRITY}
@@ -189,6 +191,7 @@ class ManipulationPage(FindingsPage):
 
 class AIDetectionPage(FindingsPage):
     title = "Intelligenza artificiale"
+    lead = "Indizi che l'immagine sia stata creata con l'intelligenza artificiale."
     intro = ("In questa versione il modulo cerca solo indicatori di provenienza nei metadati: tag IPTC "
              "DigitalSourceType, nomi di generatori, parametri di generazione nei PNG, segmenti C2PA.")
     categories = {Category.AI_GENERATION, Category.DEEPFAKE}
@@ -203,6 +206,7 @@ class AIDetectionPage(FindingsPage):
 
 class VideoForensicsPage(Page):
     title = "Video e audio"
+    lead = "Tracce, durata e codifica del video e dell'audio."
     intro = ("Contenitore, stream e coerenza tra tracce, letti con FFprobe, e albero degli atom per MP4/MOV. "
              "Durate diverse tra audio e video, tracce create in momenti diversi o un encoder di editing sono "
              "elementi da approfondire.")

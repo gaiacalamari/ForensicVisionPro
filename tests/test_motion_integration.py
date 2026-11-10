@@ -233,7 +233,7 @@ def ui(tmp_path, monkeypatch):
     from fvp.ui.main_window import MainWindow
     from fvp.ui.state import AppState
     app = QApplication.instance() or QApplication([])
-    st = AppState(Settings(operator="tester"))
+    st = AppState(Settings(operator="tester", ui_simple=False))
     w = MainWindow(st)
     yield app, st, w
     w.close()
