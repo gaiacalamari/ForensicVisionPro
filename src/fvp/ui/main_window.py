@@ -6,6 +6,7 @@ caso si passa al caricamento delle immagini. Tema chiaro predefinito, commutabil
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
                                QMainWindow, QMessageBox, QProgressBar, QPushButton, QScrollArea, QStackedWidget,
                                QVBoxLayout, QWidget)
@@ -165,8 +166,14 @@ class MainWindow(QMainWindow):
             sa.setWidgetResizable(True)
             sa.setFrameShape(QFrame.Shape.NoFrame)
             sa.setWidget(self.pages[k])
-            sa.viewport().setAutoFillBackground(False)
-            self.pages[k].setAutoFillBackground(False)
+            # Sfondo pieno su area, viewport e pagina. Con sfondi trasparenti Windows non ridipinge sotto la pagina
+            # appena mostrata e restano visibili i testi della pagina precedente (testi sovrapposti dopo «Apri
+            # vista»). Il colore viene dal tema (ruolo Window della palette e foglio di stile).
+            for wdg in (sa, sa.viewport(), self.pages[k]):
+                wdg.setAutoFillBackground(True)
+                wdg.setBackgroundRole(QPalette.ColorRole.Window)
+            sa.viewport().setObjectName("PageViewport")
+            self.pages[k].setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
             self.scrolls[k] = sa
             self.stack.addWidget(sa)
         rv.addWidget(self.stack, 1)
@@ -250,7 +257,7 @@ class MainWindow(QMainWindow):
             self.nav.setCurrentItem(None)
             self.nav.blockSignals(False)
             self._shown = name
-            self.stack.setCurrentWidget(self.scrolls[name])
+            self._show_page(name)
             self.pages[name].refresh()
             return
         if it.flags() & Qt.ItemFlag.ItemIsEnabled:
@@ -266,8 +273,16 @@ class MainWindow(QMainWindow):
             return
         page = self.pages[name]
         self._shown = name
-        self.stack.setCurrentWidget(self.scrolls[name])
+        self._show_page(name)
         page.refresh()
+
+    def _show_page(self, name: str) -> None:
+        """Mostra la pagina e ne fa ridisegnare per intero l'area: nessun residuo della pagina precedente."""
+        sa = self.scrolls[name]
+        self.stack.setCurrentWidget(sa)
+        sa.verticalScrollBar().setValue(0)
+        for wdg in (self.stack, sa, sa.viewport(), sa.widget()):
+            wdg.update()
 
     def current_page(self):
         sa = self.stack.currentWidget()

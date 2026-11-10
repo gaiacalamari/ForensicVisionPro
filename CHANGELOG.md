@@ -10,6 +10,10 @@
   (portatili, Windows con ridimensionamento al 125-150%), per esempio dopo «Apri vista». Ogni pagina ora scorre
   invece di comprimere i suoi elementi; la finestra si può ridurre fino a 980×600.
 - Corretto: «Apri vista» su un risultato di Persone e movimento apriva la scheda sbagliata invece delle immagini.
+- Corretto: su Windows, dopo «Apri vista», restavano visibili sotto la nuova pagina i testi di una pagina precedente
+  (per esempio «Casi» sotto «Contenuti nascosti»). Le pagine avevano lo sfondo trasparente: ora area di scorrimento,
+  viewport e pagina hanno lo sfondo pieno del tema e a ogni cambio di pagina l'area viene ridisegnata per intero e
+  riportata in cima.
 - Carica e analizza: le singole analisi su due colonne, leggibili anche su schermi stretti.
 - Leggi i risultati: i dettagli del risultato scelto (cosa significa, cosa fare, dati tecnici) sono nel riquadro
   «Dettagli» a destra, già aperto sul primo punto da verificare; «Esito per area» passa a sinistra, sotto il file.

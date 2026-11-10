@@ -97,7 +97,7 @@ QMainWindow, QStackedWidget > QWidget {{ background:{c['base']}; }}
 #Stat {{ background:{c['panel']}; border:1px solid {c['rule']}; border-radius:4px; }}
 #StatValue {{ font-size:20pt; font-weight:600; }}
 #NotImpl {{ background:{c['panel']}; border:1px dashed {c['rule']}; border-radius:4px; padding:12px; color:{c['muted']}; }}
-QScrollArea#PageScroll {{ background:transparent; border:none; }}
+QScrollArea#PageScroll, QWidget#PageViewport, QWidget#PageViewport > QWidget {{ background:{c['base']}; border:none; }}
 #HelpBox {{ background:{c['panel']}; border:1px solid {c['rule']}; border-left:3px solid {c['accent']}; border-radius:4px; padding:10px 12px; }}
 #HelpButton {{ padding:3px 10px; }}
 #ModeButton {{ padding:4px 12px; font-weight:600; }}

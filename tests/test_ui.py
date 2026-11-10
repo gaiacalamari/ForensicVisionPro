@@ -374,3 +374,30 @@ def test_pose_open_view_shows_images_tab(ui, tmp_path, monkeypatch):
     w.pages["Dashboard"]._open("Human Pose", "pose_jumps")
     pp = w.pages["Human Pose"]
     assert pp.tabs.currentWidget() is pp.imgs_tab and pp.art_combo.currentData() == "pose_jumps"
+
+
+def test_pages_have_opaque_background(simple_ui):
+    """Ogni pagina ha uno sfondo pieno del colore del tema: con sfondi trasparenti Windows lasciava visibili i testi
+    della pagina precedente dopo «Apri vista»."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor
+
+    from fvp.ui import theme
+    from fvp.ui.main_window import NAV
+    app, st, w = simple_ui
+    w.show()
+    for mode in ("light", "dark"):
+        theme.apply(app, mode)
+        for _ in range(3):
+            app.processEvents()
+        for name in NAV:
+            sa, pg = w.scrolls[name], w.pages[name]
+            assert sa.autoFillBackground(), name
+            assert pg.testAttribute(Qt.WidgetAttribute.WA_StyledBackground), name
+            assert sa.viewport().objectName() == "PageViewport"            # sfondo dal foglio di stile del tema
+            assert "QWidget#PageViewport > QWidget" in app.styleSheet() and "transparent" not in \
+                app.styleSheet().split("QScrollArea#PageScroll")[1].split("}")[0]
+            sa.resize(900, 700)
+            img = pg.grab().toImage()
+            assert QColor(img.pixel(3, 3)).name() == QColor(theme.C["base"]).name(), (mode, name)
+    theme.apply(app, "light")
