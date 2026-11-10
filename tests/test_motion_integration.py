@@ -64,12 +64,14 @@ def main():
     ap = argparse.ArgumentParser()
     for a in ("video_dir", "result_dir", "nb_persons_to_detect", "person_ordering_method", "show_realtime_results",
               "show_graphs", "save_vid", "save_img", "save_pose", "calculate_angles", "save_angles", "mode",
-              "to_meters", "do_ik", "first_person_height", "default_height", "do_augmentation", "use_simple_model"):
+              "to_meters", "do_ik", "first_person_height", "default_height", "do_augmentation", "use_simple_model",
+              "save_graphs"):
         ap.add_argument("--" + a)
     ap.add_argument("--video_input", nargs="*")
     ap.add_argument("--participant_mass", nargs="*")
     a = ap.parse_args()
     assert a.show_realtime_results == "false" and a.show_graphs == "false"
+    assert a.save_graphs == "false"     # con true Sports2D 0.8.x si interrompe prima del video e dell'IK
     src = Path(a.video_dir) / a.video_input[0]
     out = Path(a.result_dir) / (src.stem + "_Sports2D")
     out.mkdir(parents=True)
@@ -319,3 +321,77 @@ def test_pose_page_opensim_source_and_button(ui, tmp_path, monkeypatch, fake_env
     assert "presunta" in pp.osim_info.text()
     pp.src.setCurrentIndex(2)
     assert "knee angle r" in pp.chart.visible and pp.player.count > 0
+
+
+def test_ik_marker_error_parsing():
+    log = ("[info] Frame 0 (t = 0):\t total squared error = 0.01, marker error: RMS = 0.0233, max = 0.0561 (Neck)\n"
+           "[info] Frame 1 (t = 0.03):\t total squared error = 0.01, marker error: RMS = 0.0251, max = 0.0602 (Neck)\n")
+    e = S.ik_marker_error(log)
+    assert e == {"frames": 2, "rms_mean_m": 0.0242, "rms_max_m": 0.0251, "max_m": 0.0602}
+    assert S.ik_marker_error("niente") == {}
+
+
+# ------------------------------------------------------------------ Sports2D, Pose2Sim e OpenSim reali (facoltativo)
+
+def _walking_trc(path, n=60, fps=30):
+    """Camminata laterale sintetica in pixel (HALPE-26), per Sports2D --load_trc_px."""
+    import math
+    H, y0, rows = 340.0, 440.0, []
+    for i in range(n):
+        ph, x0 = 2 * math.pi * i / fps, 120 + 3 * i
+        q = {"Hip": (x0, y0 - .53 * H), "LHip": (x0 - 3, y0 - .53 * H), "RHip": (x0 + 3, y0 - .53 * H),
+             "Neck": (x0 + 4, y0 - .82 * H), "Head": (x0 + 8, y0 - .98 * H), "Nose": (x0 + 22, y0 - .93 * H),
+             "LEye": (x0 + 18, y0 - .95 * H), "REye": (x0 + 20, y0 - .95 * H), "LEar": (x0 + 4, y0 - .94 * H),
+             "REar": (x0 + 6, y0 - .94 * H), "LShoulder": (x0 + 2, y0 - .8 * H), "RShoulder": (x0 + 6, y0 - .8 * H)}
+        for sd, sg in (("L", 1), ("R", -1)):
+            a, k, ar = .45 * math.sin(ph) * sg, .6 * max(0, math.sin(ph + (0 if sg > 0 else math.pi) + 1.2)), \
+                -.4 * math.sin(ph) * sg
+            sh = q[sd + "Shoulder"]
+            el = (sh[0] + .17 * H * math.sin(ar), sh[1] + .17 * H * math.cos(ar))
+            q[sd + "Elbow"], q[sd + "Wrist"] = el, (el[0] + .15 * H * math.sin(ar + .3), el[1] + .15 * H * math.cos(ar + .3))
+            h = q[sd + "Hip"]
+            kn = (h[0] + .245 * H * math.sin(a), h[1] + .245 * H * math.cos(a))
+            an = (kn[0] + .246 * H * math.sin(a - k), kn[1] + .246 * H * math.cos(a - k))
+            q[sd + "Knee"], q[sd + "Ankle"] = kn, an
+            q[sd + "Heel"], q[sd + "BigToe"], q[sd + "SmallToe"] = (an[0] - 12, an[1] + 8), (an[0] + 40, an[1] + 10), \
+                (an[0] + 34, an[1] + 11)
+        rows.append((i, i / fps, [q[nm] for nm in P.HALPE26]))
+    with open(path, "w") as fh:
+        fh.write(f"PathFileType\t4\t(X/Y/Z)\t{path.name}\nDataRate\tCameraRate\tNumFrames\tNumMarkers\tUnits\t"
+                 f"OrigDataRate\tOrigDataStartFrame\tOrigNumFrames\n{fps}\t{fps}\t{n}\t26\tpx\t{fps}\t0\t{n}\n"
+                 "Frame#\tTime\t" + "\t\t\t".join(P.HALPE26) + "\t\t\n\t\t"
+                 + "\t".join(f"X{j + 1}\tY{j + 1}\tZ{j + 1}" for j in range(26)) + "\n\n")
+        for i, t, k in rows:
+            fh.write(f"{i}\t{t:.4f}\t" + "\t".join(f"{x:.3f}\t{y:.3f}\t0" for x, y in k) + "\n")
+    return rows
+
+
+@pytest.mark.skipif(not os.environ.get("FVP_TEST_SPORTS2D_PY"),
+                    reason="Sports2D reale non configurato (FVP_TEST_SPORTS2D_PY=<python dell'ambiente>)")
+def test_real_sports2d_creates_opensim_model(tmp_path):
+    """Con i programmi veri: video annotato, modello .osim caricabile da OpenSim, movimento IK, ossa incluse."""
+    trc = tmp_path / "walk_px.trc"
+    rows = _walking_trc(trc)
+    vid = tmp_path / "walk.mp4"
+    vw = cv2.VideoWriter(str(vid), cv2.VideoWriter_fourcc(*"mp4v"), 30, (640, 480))
+    for _i, _t, k in rows:
+        f = np.full((480, 640, 3), 60, np.uint8)
+        for x, y in k:
+            cv2.circle(f, (int(x), int(y)), 4, (255, 255, 255), -1)
+        vw.write(f)
+    vw.release()
+    from fvp.core.config import Settings
+    s = Settings(sports2d_python=os.environ["FVP_TEST_SPORTS2D_PY"], sports2d_extra_args=f"--load_trc_px {trc}")
+    res, fs = S.run(vid, tmp_path / "out", s)
+    assert res["returncode"] == 0, Path(res["log"]["path"]).read_text(encoding="utf-8")[-2000:]
+    osm = res["opensim"]
+    assert res["video"] and osm["model"] and osm["motion"] and osm["geometry"]["files"] > 100
+    assert osm["ik_marker_error"]["rms_mean_m"] < 0.1
+    code = ("import opensim as o, sys; m = o.Model(sys.argv[1]); m.initSystem(); "
+            "t = o.TimeSeriesTable(sys.argv[2]); print(m.getBodySet().getSize(), t.getNumRows())")
+    r = subprocess.run([os.environ["FVP_TEST_SPORTS2D_PY"], "-c", code, osm["model"][0], osm["motion"][0]],
+                       capture_output=True, text=True)
+    bodies, nrows = map(int, r.stdout.split()[-2:])
+    assert bodies > 10 and nrows == len(rows)
+    assert "Couldn't find file" not in r.stdout + r.stderr          # ossa trovate nella cartella Geometry
+    assert any(f.title.startswith("Modello OpenSim creato") for f in fs)

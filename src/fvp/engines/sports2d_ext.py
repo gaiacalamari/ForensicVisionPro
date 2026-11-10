@@ -46,11 +46,18 @@ DEFAULT_HEIGHT_M = 1.70        # Sports2D: default_height; usata solo se la stat
 
 OPENSIM_README = """Modello OpenSim prodotto da Sports2D/Pose2Sim (Forensic Vision Pro)
 
+File in questa cartella:
+- {model}  modello muscoloscheletrico scalato sulla persona (scheletro, articolazioni, muscoli)
+- {motion}  movimento calcolato con la cinematica inversa
+- Geometry\\  ossa del modello (file .vtp di Pose2Sim): tenerla accanto al .osim
+
 Come vederlo:
 1. Installare OpenSim (gratuito): https://simtk.org/projects/opensim  (versione 4.5 o successiva)
-2. OpenSim > File > Open Model...      scegliere il file .osim (modello scalato sulla persona)
-3. OpenSim > File > Load Motion...     scegliere il file *_ik.mot della stessa persona
+2. OpenSim > File > Open Model...      scegliere {model}
+3. OpenSim > File > Load Motion...     scegliere {motion}
 4. Premere Play nella barra in basso: il modello ripete il movimento del video.
+
+Errore di ricostruzione dei marcatori (cinematica inversa): {ik_error}
 
 Il file *_m_*.trc (marcatori in metri) si può sovrapporre con File > Preview Experimental Data.
 
@@ -148,7 +155,10 @@ def build_command(py: Path, video: Path, result_dir: Path, settings=None) -> lis
     cmd = [str(py), "-m", "Sports2D.Sports2D",
            "--video_dir", str(video.parent), "--video_input", video.name, "--result_dir", str(result_dir),
            "--nb_persons_to_detect", "all", "--person_ordering_method", "highest_likelihood",
-           "--show_realtime_results", "false", "--show_graphs", "false",
+           # --save_graphs false: con show_graphs=false e save_graphs=true Sports2D 0.8.x termina con
+           # "AttributeError: 'list' object has no attribute 'close'" prima di salvare il video e di eseguire la
+           # cinematica inversa (nessun .osim). I grafici degli angoli li produce comunque Forensic Vision Pro.
+           "--show_realtime_results", "false", "--show_graphs", "false", "--save_graphs", "false",
            "--save_vid", "true", "--save_img", "false", "--save_pose", "true",
            "--calculate_angles", "true", "--save_angles", "true", "--mode", "balanced"]
     if opensim:
@@ -162,7 +172,31 @@ def build_command(py: Path, video: Path, result_dir: Path, settings=None) -> lis
         cmd += ["--to_meters", "true", "--first_person_height", f"{h:g}", "--do_ik", "false"]
     else:
         cmd += ["--to_meters", "false", "--do_ik", "false"]
-    return cmd
+    extra = str(getattr(settings, "sports2d_extra_args", "") or "").split()
+    return cmd + extra
+
+
+def _geometry_dir(py: Path) -> Path | None:
+    """Cartella delle ossa (.vtp) dei modelli Pose2Sim, nell'ambiente separato."""
+    try:
+        r = subprocess.run([str(py), "-c", "import importlib.util, pathlib; s = importlib.util.find_spec('Pose2Sim'); "
+                                           "print(pathlib.Path(s.origin).parent / 'OpenSim_Setup' / 'Geometry')"],
+                           capture_output=True, text=True, timeout=120, **_no_window())
+        d = Path(r.stdout.strip().splitlines()[-1]) if r.returncode == 0 and r.stdout.strip() else None
+        return d if d and d.is_dir() else None
+    except (OSError, subprocess.SubprocessError, IndexError):
+        return None
+
+
+def ik_marker_error(log_text: str) -> dict:
+    """RMS e massimo dell'errore dei marcatori nella cinematica inversa di OpenSim (dal registro, in metri)."""
+    import re
+    rms = [float(x) for x in re.findall(r"marker error: RMS = ([0-9.eE+-]+)", log_text)]
+    mx = [float(x) for x in re.findall(r"marker error: RMS = [0-9.eE+-]+, max = ([0-9.eE+-]+)", log_text)]
+    if not rms:
+        return {}
+    return {"frames": len(rms), "rms_mean_m": round(sum(rms) / len(rms), 4), "rms_max_m": round(max(rms), 4),
+            "max_m": round(max(mx), 4) if mx else None}
 
 
 def _rtmlib_models() -> list[dict]:
@@ -248,12 +282,35 @@ def run(working_copy: str | Path, out_dir: Path, settings=None, progress: Progre
     mots = [e for e in mots if e not in iks]
     want_osim = "--do_ik" in cmd and cmd[cmd.index("--do_ik") + 1] == "true"
     h, assumed = height_for(settings)
+    ik_err: dict = {}
+    geometry: dict = {}
+    if osims:
+        # le ossa del modello: senza la cartella Geometry accanto al .osim OpenSim mostra solo i marcatori
+        gsrc = _geometry_dir(py)
+        if gsrc:
+            gdst = Path(osims[0]["path"]).parent / "Geometry"
+            shutil.copytree(gsrc, gdst, dirs_exist_ok=True)
+            files = sorted(f for f in gdst.rglob("*") if f.is_file())
+            manifest = "\n".join(f"{_sha256(f)}  {f.name}" for f in files)
+            mf = gdst.parent / "Geometry_SHA256SUMS.txt"
+            mf.write_text(manifest + "\n", encoding="utf-8")
+            e = _entry(mf, out_dir)
+            outputs[e["rel"]] = e
+            geometry = {"files": len(files), "manifest_sha256": e["sha256"], "source": str(gsrc)}
+        osl = sorted(res_dir.rglob("opensim_logs.txt"))     # registro di OpenSim; altrimenti quello di Sports2D
+        logs = "".join(f.read_text(encoding="utf-8", errors="replace") for f in osl) if osl else \
+            log_path.read_text(encoding="utf-8", errors="replace")
+        ik_err = ik_marker_error(logs)
     if osims:      # istruzioni accanto ai file, per chi riceve la cartella
         note = (f"ATTENZIONE: statura non documentata, usata quella predefinita di {h:g} m. Le dimensioni del modello e "
                 "gli spostamenti in metri sono in scala arbitraria; gli angoli articolari non dipendono dalla statura."
                 if assumed else f"Statura documentata indicata dall'operatore: {h:g} m.")
         rd = Path(osims[0]["path"]).parent / "LEGGIMI_OpenSim.txt"
-        rd.write_text(OPENSIM_README.format(height_note=note), encoding="utf-8")
+        err_txt = (f"RMS medio {ik_err['rms_mean_m'] * 100:.1f} cm, peggiore {ik_err['rms_max_m'] * 100:.1f} cm su "
+                   f"{ik_err['frames']} frame" if ik_err else "non disponibile")
+        rd.write_text(OPENSIM_README.format(height_note=note, model=Path(osims[0]["path"]).name,
+                                            motion=Path(iks[0]["path"]).name if iks else "*_ik.mot",
+                                            ik_error=err_txt), encoding="utf-8")
         e = _entry(rd, out_dir)
         outputs[e["rel"]] = e
     res = {"python": str(py), "versions": ver, "command": cmd, "returncode": proc.returncode, "duration_s": dur,
@@ -262,7 +319,8 @@ def run(working_copy: str | Path, out_dir: Path, settings=None, progress: Progre
            "trc": [e["path"] for e in trcs], "models_cache": _rtmlib_models(), "artifacts": {},
            "opensim": {"requested": want_osim, "model": [e["path"] for e in osims], "motion": [e["path"] for e in iks],
                        "height_m": h if (want_osim or not assumed) else None, "height_assumed": assumed and want_osim,
-                       "opensim_version": ver.get("opensim", "")}}
+                       "opensim_version": ver.get("opensim", ""), "ik_marker_error": ik_err,
+                       "geometry": geometry}}
     if pngs:
         res["artifacts"]["sports2d_angles"] = pngs[0]["path"]
     after = _sha256(video)
@@ -304,7 +362,9 @@ def run(working_copy: str | Path, out_dir: Path, settings=None, progress: Progre
                 "la cinematica inversa: aprendo il .osim e poi il *_ik.mot con OpenSim il modello 3D ripete il "
                 "movimento del video (istruzioni in LEGGIMI_OpenSim.txt).", "Pose2Sim: scaling + inverse kinematics "
                 f"OpenSim {ver.get('opensim') or ''}".strip(), MODULE,
-                evidence="\n".join(f"{Path(e['path']).name}  SHA-256 {e['sha256']}" for e in osims + iks),
+                evidence="\n".join(f"{Path(e['path']).name}  SHA-256 {e['sha256']}" for e in osims + iks)
+                + (f"\nErrore dei marcatori (cinematica inversa): RMS medio {ik_err['rms_mean_m'] * 100:.1f} cm, "
+                   f"peggiore {ik_err['rms_max_m'] * 100:.1f} cm su {ik_err['frames']} frame" if ik_err else ""),
                 confidence="n/a",
                 limitations=("Statura non documentata: usata quella predefinita di Sports2D "
                              f"({h:g} m), quindi dimensioni e spostamenti in metri sono in scala arbitraria; gli angoli "

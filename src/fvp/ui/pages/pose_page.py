@@ -392,12 +392,27 @@ class PosePage(Page):
         if osm.get("model"):
             hn = (f"statura presunta {osm['height_m']:g} m (non documentata): dimensioni in scala arbitraria"
                   if osm.get("height_assumed") else f"statura documentata {osm.get('height_m')} m")
+            er = osm.get("ik_marker_error") or {}
+            if er:
+                hn += f"; errore dei marcatori RMS medio {er['rms_mean_m'] * 100:.1f} cm"
             self.osim_info.setText(
                 f"<b>Modello OpenSim pronto</b> ({hn}).<br>Modello: {', '.join(Path(m).name for m in osm['model'])}"
                 f"<br>Movimento: {', '.join(Path(m).name for m in osm['motion'])}<br>In OpenSim: File &gt; Open "
                 "Model (.osim), poi File &gt; Load Motion (*_ik.mot) e Play. OpenSim si scarica gratis da "
                 "simtk.org/projects/opensim. Le curve della cinematica inversa sono anche nella scheda 'Video e "
                 "angoli', fonte 'OpenSim'.")
+        elif sp and sp.get("returncode") not in (0, None):
+            import html
+            tail = ""
+            try:
+                tail = Path(sp["log"]["path"]).read_text(encoding="utf-8", errors="replace").strip().splitlines()[-6:]
+            except (OSError, KeyError, TypeError):
+                tail = []
+            self.osim_info.setText(
+                f"<span style='color:{C['red']}'><b>Sports2D si è interrotto (codice {sp['returncode']})</b>: niente "
+                "video annotato né modello OpenSim.</span> Ultime righe del registro:<br><code>"
+                + "<br>".join(html.escape(x) for x in tail) + "</code><br>Premi 'Esegui Sports2D originale sul "
+                "reperto' per ripetere l'analisi.")
         elif osm.get("requested"):
             self.osim_info.setText("Modello OpenSim richiesto ma non prodotto: vedi la scheda Risultati e sports2d.log.")
         else:

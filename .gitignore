@@ -7,3 +7,4 @@ bin/*
 !bin/README.txt
 !bin/tools.json
 .pytest_cache/
+opensim.log

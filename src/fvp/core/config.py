@@ -46,6 +46,7 @@ class Settings:
     sports2d_person_mass_kg: float = 0.0     # massa documentata (kg); 0 = non nota (influisce solo sulle forze)
     sports2d_opensim: bool = True      # modello OpenSim scalato (.osim) e cinematica inversa (.mot) via Pose2Sim
     sports2d_simple_model: bool = False  # modello OpenSim semplificato: IK 10 volte più rapida, senza muscoli
+    sports2d_extra_args: str = ""      # opzioni aggiuntive di Sports2D (esperti); registrate nel comando
     hash_algorithms: list[str] = field(default_factory=lambda: ["md5", "sha1", "sha256", "sha512", "sha3_256", "blake2b"])
 
     @property

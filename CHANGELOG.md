@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.1 — 2026-11-09
+
+- Corretto: Sports2D 0.8.x si interrompeva prima di salvare il video annotato e di eseguire la cinematica inversa
+  (`AttributeError: 'list' object has no attribute 'close'` con `show_graphs=false`), quindi non creava il modello
+  OpenSim (.osim). Ora viene avviato con `--save_graphs false`; verificato con Sports2D 0.8.34, Pose2Sim 0.10.49 e
+  OpenSim 4.6 reali: modello scalato con 30 corpi e 318 muscoli, movimento IK caricabile da OpenSim.
+- Le ossa del modello (cartella `Geometry` di Pose2Sim, 215 file .vtp) sono copiate accanto al .osim, con
+  `Geometry_SHA256SUMS.txt`: OpenSim mostra lo scheletro anche senza la sua libreria di geometrie.
+- Errore dei marcatori della cinematica inversa (RMS medio e peggiore, in cm) nei risultati, nell'interfaccia e in
+  `LEGGIMI_OpenSim.txt`, come indicatore di qualità del modello.
+- Se Sports2D si interrompe, la scheda Sports2D / Pose2Sim mostra in rosso il codice di uscita e le ultime righe del
+  registro.
+- Test facoltativo con i programmi reali (`FVP_TEST_SPORTS2D_PY`).
+
 ## 1.4.0 — 2026-11-09
 
 Analisi video: acquisizione di video e audio, persone e movimento con video annotato e grafici degli angoli,
