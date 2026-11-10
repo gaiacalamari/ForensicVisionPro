@@ -43,7 +43,7 @@ PYTHONPATH=src python -m pytest -q                 # test
 
 ## Crediti e licenze
 
-Forensic Vision Pro si basa su componenti di terze parti, che ringraziamo:
+Forensic Vision Pro si basa su componenti di terze parti:
 
 - **Qt for Python**: The Qt Company.
 - **Pillow**: Jeffrey A. Clark e collaboratori.
